@@ -1,93 +1,31 @@
 import { MainLayout } from "@/components/MainLayout";
 import { Plus } from "lucide-react";
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-interface CountyRecord {
-  id: string;
-  county: string;
-  created: string;
-  createdBy: string;
-  year: number;
-  status: "Published" | "Draft";
-}
-
-const initialCounties: CountyRecord[] = [
-  {
-    id: "1",
-    county: "Nairobi",
-    created: "Nov 15, 2025",
-    createdBy: "Jane Doe",
-    year: 2024,
-    status: "Published",
-  },
-  {
-    id: "2",
-    county: "Mombasa",
-    created: "Nov 15, 2025",
-    createdBy: "Jane Doe",
-    year: 2024,
-    status: "Published",
-  },
-  {
-    id: "3",
-    county: "Nairobi",
-    created: "Nov 15, 2025",
-    createdBy: "Jane Doe",
-    year: 2024,
-    status: "Published",
-  },
-  {
-    id: "4",
-    county: "Mombasa",
-    created: "Nov 15, 2025",
-    createdBy: "Jane Doe",
-    year: 2024,
-    status: "Published",
-  },
-  {
-    id: "5",
-    county: "Nairobi",
-    created: "Nov 15, 2025",
-    createdBy: "Jane Doe",
-    year: 2024,
-    status: "Published",
-  },
-  {
-    id: "6",
-    county: "Mombasa",
-    created: "Nov 15, 2025",
-    createdBy: "Jane Doe",
-    year: 2024,
-    status: "Published",
-  },
-  {
-    id: "7",
-    county: "Nairobi",
-    created: "Nov 15, 2025",
-    createdBy: "Jane Doe",
-    year: 2024,
-    status: "Draft",
-  },
-  {
-    id: "8",
-    county: "Mombasa",
-    created: "Nov 15, 2025",
-    createdBy: "Jane Doe",
-    year: 2024,
-    status: "Draft",
-  },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, type County } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CountiesList() {
   const navigate = useNavigate();
-  const [counties] = useState<CountyRecord[]>(initialCounties);
 
-  const getStatusColor = (status: string) => {
-    return status === "Published"
-      ? "bg-green-100 text-green-800"
-      : "bg-gray-100 text-gray-800";
-  };
+  const { data, isLoading, isError, error } = useQuery<County[]>({
+    queryKey: ["counties"],
+    queryFn: api.listCounties,
+  });
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.deleteCounty(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["counties"] });
+      toast({ title: "Deleted", description: "County deleted." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.message ?? "Failed to delete county" });
+    },
+  });
 
   return (
     <MainLayout>
@@ -110,69 +48,55 @@ export default function CountiesList() {
             <table className="w-full">
               <thead>
                 <tr className="bg-background border-b border-border">
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    County
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    Created
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    Created By
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    Year
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    Operation
-                  </th>
+                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">County</th>
+                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Population</th>
+                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Thematic Area ID</th>
+                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Operation</th>
                 </tr>
               </thead>
               <tbody>
-                {counties.map((county, index) => (
-                  <tr
-                    key={county.id}
-                    className={cn(
-                      "border-b border-border hover:bg-background/50 transition-colors",
-                      index === counties.length - 1 && "border-b-0"
-                    )}
-                  >
-                    <td className="py-4 px-6 text-foreground text-sm font-medium">
-                      {county.county}
-                    </td>
-                    <td className="py-4 px-6 text-foreground text-sm">
-                      {county.created}
-                    </td>
-                    <td className="py-4 px-6 text-foreground text-sm">
-                      {county.createdBy}
-                    </td>
-                    <td className="py-4 px-6 text-foreground text-sm">
-                      {county.year}
-                    </td>
-                    <td className="py-4 px-6">
-                      <span
-                        className={cn(
-                          "inline-block px-3 py-1 rounded text-xs font-medium",
-                          getStatusColor(county.status)
-                        )}
-                      >
-                        {county.status}
-                      </span>
-                    </td>
+                {isLoading && (
+                  <tr>
+                    <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">Loading...</td>
+                  </tr>
+                )}
+                {isError && (
+                  <tr>
+                    <td colSpan={4} className="py-6 px-6 text-center text-destructive">Error: {(error as Error)?.message}</td>
+                  </tr>
+                )}
+                {data?.map((county, index) => (
+                  <tr key={county.id} className={(index === (data?.length ?? 0) - 1 ? "border-b-0" : "border-b border-border") + " hover:bg-background/50 transition-colors"}>
+                    <td className="py-4 px-6 text-foreground text-sm font-medium">{county.name}</td>
+                    <td className="py-4 px-6 text-foreground text-sm">{county.population ?? '-'}</td>
+                    <td className="py-4 px-6 text-foreground text-sm">{county.thematic_area_id ?? '-'}</td>
                     <td className="py-4 px-6 text-sm">
                       <div className="flex items-center gap-4">
-                        <button className="text-primary hover:text-primary/80 transition-colors font-medium">
+                        <button
+                          onClick={() => navigate("/county-data", { state: { countyId: county.id } })}
+                          className="text-primary hover:text-primary/80 transition-colors font-medium"
+                        >
                           Edit
                         </button>
-                        <button className="text-destructive hover:text-destructive/80 transition-colors font-medium">
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete county "${county.name}"?`)) {
+                              deleteMutation.mutate(Number(county.id));
+                            }
+                          }}
+                          className="text-destructive hover:text-destructive/80 transition-colors font-medium"
+                        >
                           Delete
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
+                {data && data.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">No counties found.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -180,8 +104,4 @@ export default function CountiesList() {
       </div>
     </MainLayout>
   );
-}
-
-function cn(...classes: (string | undefined | false)[]) {
-  return classes.filter(Boolean).join(" ");
 }

@@ -1,6 +1,8 @@
 import { MainLayout } from "@/components/MainLayout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ChevronDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 const waterData = [
   { rank: 1, county: "Nairobi", wasteMgt: 11, avgScore: 21 },
@@ -53,7 +55,7 @@ const ChartSection = ({ title, subtitle }: { title: string; subtitle: string }) 
   </div>
 );
 
-const RankingTable = ({ title, data }: { title: string; data: typeof waterData }) => (
+const RankingTable = ({ title, data }: { title: string; data: Array<any> }) => (
   <div className="bg-white rounded-lg p-6 border border-border">
     <div className="flex items-center justify-between mb-4">
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
@@ -74,8 +76,8 @@ const RankingTable = ({ title, data }: { title: string; data: typeof waterData }
           <tr className="border-b border-border">
             <th className="text-left py-2 px-0 text-xs font-semibold text-foreground">Rank</th>
             <th className="text-left py-2 px-0 text-xs font-semibold text-foreground">County</th>
-            <th className="text-left py-2 px-0 text-xs font-semibold text-foreground">Waste Mgt</th>
-            <th className="text-left py-2 px-0 text-xs font-semibold text-foreground">Avg Score</th>
+            <th className="text-left py-2 px-0 text-xs font-semibold text-foreground">Population</th>
+            <th className="text-left py-2 px-0 text-xs font-semibold text-foreground">Thematic Area</th>
           </tr>
         </thead>
         <tbody>
@@ -85,8 +87,8 @@ const RankingTable = ({ title, data }: { title: string; data: typeof waterData }
               <td className="py-3 px-0 text-foreground underline cursor-pointer hover:text-primary">
                 {row.county}
               </td>
-              <td className="py-3 px-0 text-foreground">{row.wasteMgt}</td>
-              <td className="py-3 px-0 text-foreground">{row.avgScore}</td>
+              <td className="py-3 px-0 text-foreground">{row.population ?? "—"}</td>
+              <td className="py-3 px-0 text-foreground">{row.thematic ?? "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -96,6 +98,16 @@ const RankingTable = ({ title, data }: { title: string; data: typeof waterData }
 );
 
 export default function Counties() {
+  const { data: counties } = useQuery({ queryKey: ["counties"], queryFn: api.listCounties });
+  const { data: thematicAreas } = useQuery({ queryKey: ["thematicAreas"], queryFn: api.listThematicAreas });
+
+  const rows = (counties ?? []).map((c: any, idx: number) => ({
+    rank: idx + 1,
+    county: c.name,
+    population: c.population,
+    thematic: thematicAreas?.find((t: any) => t.id === c.thematic_area_id)?.name ?? "—",
+  }));
+
   return (
     <MainLayout>
       <div className="space-y-8">
@@ -103,8 +115,8 @@ export default function Counties() {
           <h2 className="text-2xl font-bold text-foreground mb-6">Overall Ranking</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <RankingTable title="Water Management" data={waterData} />
-            <RankingTable title="Waste Management" data={wasteData} />
+            <RankingTable title="County Rankings" data={rows} />
+            <RankingTable title="County Rankings (Duplicate)" data={rows} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

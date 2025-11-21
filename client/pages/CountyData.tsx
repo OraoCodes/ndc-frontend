@@ -1,6 +1,10 @@
 import { MainLayout } from "@/components/MainLayout";
 import { ChevronDown, CheckCircle, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { api, type ThematicArea } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface Indicator {
   thematicArea: string;
@@ -67,6 +71,72 @@ const wasteIndicators: Indicator[] = [
 export default function CountyData() {
   const [county, setCounty] = useState("");
   const [year, setYear] = useState("");
+  const [population, setPopulation] = useState<number | "">("");
+  const [thematicAreaId, setThematicAreaId] = useState<number | null>(null);
+
+  // indicator scores kept in local state (not persisted by current backend)
+  const [waterScores, setWaterScores] = useState<string[]>(() => waterIndicators.map(() => ""));
+  const [wasteScores, setWasteScores] = useState<string[]>(() => wasteIndicators.map(() => ""));
+
+  // load thematic areas for select
+  const { data: thematicAreas } = useQuery<ThematicArea[]>({
+    queryKey: ["thematicAreas"],
+    queryFn: api.listThematicAreas,
+  });
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // detect edit mode via location state: { countyId }
+  const location = useLocation();
+  const editingId = (location.state as any)?.countyId as number | undefined;
+
+  // If editing, fetch the county and populate form
+  const { data: existingCounty } = useQuery({
+    queryKey: ["county", editingId],
+    queryFn: () => (editingId ? api.getCounty(Number(editingId)) : Promise.resolve(null as any)),
+    enabled: !!editingId,
+  });
+
+  useEffect(() => {
+    if (existingCounty) {
+      setCounty(existingCounty.name ?? "");
+      setPopulation(existingCounty.population ?? "");
+      setThematicAreaId(existingCounty.thematic_area_id ?? null);
+    }
+  }, [existingCounty]);
+
+  const createMutation = useMutation({
+    mutationFn: (payload: { name: string; population?: number | null; thematic_area_id?: number | null }) =>
+      api.createCounty(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["counties"] });
+      toast({ title: "Saved", description: "County created successfully." });
+      setCounty("");
+      setYear("");
+      setPopulation("");
+      setThematicAreaId(null);
+      setWaterScores(waterIndicators.map(() => ""));
+      setWasteScores(wasteIndicators.map(() => ""));
+      navigate("/counties-list");
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.message ?? "Failed to create county" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: { id: number; name: string; population?: number | null; thematic_area_id?: number | null }) =>
+      api.updateCounty(payload.id, { name: payload.name, population: payload.population, thematic_area_id: payload.thematic_area_id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["counties"] });
+      toast({ title: "Saved", description: "County updated successfully." });
+      navigate("/counties-list");
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.message ?? "Failed to update county" });
+    },
+  });
 
   return (
     <MainLayout>
@@ -127,6 +197,35 @@ export default function CountyData() {
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Population and Thematic Area */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Population</label>
+              <input
+                type="number"
+                value={population}
+                onChange={(e) => setPopulation(e.target.value === "" ? "" : Number(e.target.value))}
+                placeholder="Population"
+                className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Thematic Area</label>
+              <select
+                value={thematicAreaId ?? ""}
+                onChange={(e) => setThematicAreaId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-4 py-2 pr-10 bg-white border border-input rounded-lg text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Unassigned</option>
+                {thematicAreas?.map((ta) => (
+                  <option key={ta.id} value={ta.id}>{ta.name}</option>
+                ))}
+              </select>
+              <ChevronDown size={18} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 
@@ -217,8 +316,18 @@ export default function CountyData() {
           </div>
 
           {/* Save Button */}
-          <button className="w-full px-4 py-2 bg-sidebar text-sidebar-foreground rounded-lg hover:opacity-90 transition-opacity font-medium text-sm">
-            Save
+          <button
+            onClick={() => {
+              const payload = { name: county, population: population === "" ? null : Number(population), thematic_area_id: thematicAreaId };
+              if (editingId) {
+                updateMutation.mutate({ id: Number(editingId), ...payload });
+              } else {
+                createMutation.mutate(payload);
+              }
+            }}
+            className="w-full px-4 py-2 bg-sidebar text-sidebar-foreground rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
+          >
+            {createMutation.status === "pending" || updateMutation.status === "pending" ? "Saving..." : editingId ? "Update" : "Save"}
           </button>
         </div>
       </div>

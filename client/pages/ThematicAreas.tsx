@@ -1,29 +1,31 @@
 import { MainLayout } from "@/components/MainLayout";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-interface ThematicAreaRow {
-  id: string;
-  sector: "Water" | "Waste";
-  thematicArea: string;
-  indicators: number;
-}
-
-const thematicAreasData: ThematicAreaRow[] = [
-  { id: "1", sector: "Water", thematicArea: "Governance & Institutional Arrangements", indicators: 5 },
-  { id: "2", sector: "Water", thematicArea: "MRV (Monitoring, Reporting & Verification)", indicators: 5 },
-  { id: "3", sector: "Water", thematicArea: "Mitigation", indicators: 5 },
-  { id: "4", sector: "Water", thematicArea: "Adaptation & Resilience", indicators: 5 },
-  { id: "5", sector: "Water", thematicArea: "Finance & Resource Mobilization", indicators: 5 },
-  { id: "6", sector: "Waste", thematicArea: "Governance & Institutional Arrangements", indicators: 5 },
-  { id: "7", sector: "Waste", thematicArea: "MRV (Monitoring, Reporting & Verification)", indicators: 5 },
-  { id: "8", sector: "Waste", thematicArea: "Mitigation", indicators: 5 },
-  { id: "9", sector: "Waste", thematicArea: "Adaptation & Resilience", indicators: 5 },
-  { id: "10", sector: "Waste", thematicArea: "Finance & Resource Mobilization", indicators: 5 },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, type ThematicArea } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ThematicAreas() {
   const navigate = useNavigate();
+
+  const { data, isLoading, isError, error } = useQuery<ThematicArea[]>({
+    queryKey: ["thematicAreas"],
+    queryFn: api.listThematicAreas,
+  });
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.deleteThematicArea(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["thematicAreas"] });
+      toast({ title: "Deleted", description: "Thematic area deleted." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.message ?? "Failed to delete" });
+    },
+  });
 
   return (
     <MainLayout>
@@ -48,50 +50,53 @@ export default function ThematicAreas() {
             <table className="w-full">
               <thead>
                 <tr className="bg-background border-b border-border">
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    Sector
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    Thematic Area
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    Indicators
-                  </th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">
-                    Operation
-                  </th>
+                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Name</th>
+                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Description</th>
+                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Operation</th>
                 </tr>
               </thead>
               <tbody>
-                {thematicAreasData.map((row, index) => (
-                  <tr
-                    key={row.id}
-                    className={cn(
-                      "border-b border-border hover:bg-background/50 transition-colors",
-                      index === thematicAreasData.length - 1 && "border-b-0"
-                    )}
-                  >
-                    <td className="py-4 px-6 text-foreground text-sm font-medium">
-                      {row.sector}
-                    </td>
-                    <td className="py-4 px-6 text-foreground text-sm">
-                      {row.thematicArea}
-                    </td>
-                    <td className="py-4 px-6 text-foreground text-sm">
-                      {row.indicators}
-                    </td>
+                {isLoading && (
+                  <tr>
+                    <td colSpan={3} className="py-6 px-6 text-center text-muted-foreground">Loading...</td>
+                  </tr>
+                )}
+                {isError && (
+                  <tr>
+                    <td colSpan={3} className="py-6 px-6 text-center text-destructive">Error: {(error as Error)?.message}</td>
+                  </tr>
+                )}
+                {data?.map((row) => (
+                  <tr key={row.id} className="border-b border-border hover:bg-background/50 transition-colors">
+                    <td className="py-4 px-6 text-foreground text-sm font-medium">{row.name}</td>
+                    <td className="py-4 px-6 text-foreground text-sm">{row.description ?? '-'}</td>
                     <td className="py-4 px-6 text-sm">
                       <div className="flex items-center gap-4">
-                        <button className="text-primary hover:text-primary/80 transition-colors font-medium">
+                        <button
+                          onClick={() => toast({ title: "Not implemented", description: "Edit feature not implemented yet." })}
+                          className="text-primary hover:text-primary/80 transition-colors font-medium"
+                        >
                           Edit
                         </button>
-                        <button className="text-destructive hover:text-destructive/80 transition-colors font-medium">
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete thematic area "${row.name}"?`)) {
+                              deleteMutation.mutate(row.id);
+                            }
+                          }}
+                          className="text-destructive hover:text-destructive/80 transition-colors font-medium"
+                        >
                           Delete
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
+                {data && data.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-6 px-6 text-center text-muted-foreground">No thematic areas found.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -99,8 +104,4 @@ export default function ThematicAreas() {
       </div>
     </MainLayout>
   );
-}
-
-function cn(...classes: (string | undefined | false)[]) {
-  return classes.filter(Boolean).join(" ");
 }

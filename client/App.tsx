@@ -12,6 +12,7 @@ import CountyData from "./pages/CountyData";
 import ThematicAreas from "./pages/ThematicAreas";
 import AddThematicArea from "./pages/AddThematicArea";
 import PublicPortal from "./pages/PublicPortal";
+import Publications from "./pages/Publications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ export const App = () => (
           <Route path="/thematic-areas" element={<ThematicAreas />} />
           <Route path="/thematic-areas/add" element={<AddThematicArea />} />
           <Route path="/indicators" element={<Index />} />
+          <Route path="/publications" element={<Publications />} />
           <Route path="/public-portal" element={<PublicPortal />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

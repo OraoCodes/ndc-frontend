@@ -1,6 +1,9 @@
 import { MainLayout } from "@/components/MainLayout";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AddThematicArea() {
   const [sector, setSector] = useState("");
@@ -8,12 +11,28 @@ export default function AddThematicArea() {
 
   const handleSave = () => {
     if (sector && thematicArea) {
-      console.log("Saving:", { sector, thematicArea });
-      // Reset form
-      setSector("");
-      setThematicArea("");
+      // Trigger mutation
+      mutation.mutate({ name: thematicArea, description: sector });
     }
   };
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const mutation = useMutation({
+    mutationFn: (payload: { name: string; description?: string }) =>
+      api.createThematicArea(payload),
+    onSuccess: () => {
+      // Invalidate thematic areas list so it refetches
+      queryClient.invalidateQueries({ queryKey: ["thematicAreas"] });
+      toast({ title: "Saved", description: "Thematic area created successfully." });
+      setSector("");
+      setThematicArea("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.message ?? "Failed to create" });
+    },
+  });
 
   return (
     <MainLayout>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Grid, BarChart3, MapPin, Globe, LogOut } from "lucide-react";
+import { Home, Grid, BarChart3, MapPin, Globe, LogOut, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
@@ -10,6 +10,7 @@ export function Sidebar() {
   const navItems = [
     { label: "Home", icon: Home, path: "/" },
     { label: "Thematic Areas", icon: Grid, path: "/thematic-areas" },
+    { label: "Publications", icon: BookOpen, path: "/publications" },
     { label: "Indicators", icon: BarChart3, path: "/indicators" },
     { label: "Counties", icon: MapPin, path: "/counties-list" },
   ];

@@ -30,11 +30,18 @@ function expressPlugin(): Plugin {
   return {
     name: "express-plugin",
     apply: "serve", // Only apply during development (serve mode)
-    configureServer(server) {
-      const app = createServer();
-
-      // Add Express app as middleware to Vite dev server
-      server.middlewares.use(app);
+    async configureServer(server) {
+      // createServer returns a Promise<express.Application>
+      // Await it so the Express app is mounted before Vite starts handling requests.
+      try {
+        const app = await createServer();
+        server.middlewares.use(app as any);
+      } catch (err) {
+        // Log and rethrow so the dev server fails early and you see the error.
+        // eslint-disable-next-line no-console
+        console.error("Failed to initialize express dev middleware:", err);
+        throw err;
+      }
     },
   };
 }
