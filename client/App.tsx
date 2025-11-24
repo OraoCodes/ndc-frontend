@@ -5,7 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import Index from "./pages/Dashboard";
 import Counties from "./pages/Counties";
 import CountiesList from "./pages/CountiesList";
 import CountyData from "./pages/CountyData";
@@ -14,6 +14,18 @@ import AddThematicArea from "./pages/AddThematicArea";
 import PublicPortal from "./pages/PublicPortal";
 import Publications from "./pages/Publications";
 import NotFound from "./pages/NotFound";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import HomePage from "./pages/HomePage";
+import WaterManagement from "./pages/WaterManagementPage";
+import WasteManagement from "./pages/WasteManagementPage";
+import Governance from "./pages/GovernancePage";
+import MRV from "./pages/MRVPage";
+import Mitigation from "./pages/MitigationPage";
+import Adaptation from "./pages/AdaptationPage";
+import FinanceTechnologyTransfer from "./pages/FinanceTechnologyTransferPage";
+import CountyPage from "./pages/County/[Name]";
 
 const queryClient = new QueryClient();
 
@@ -24,7 +36,7 @@ export const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/counties" element={<Counties />} />
           <Route path="/counties-list" element={<CountiesList />} />
           <Route path="/county-data" element={<CountyData />} />
@@ -33,7 +45,19 @@ export const App = () => (
           <Route path="/indicators" element={<Index />} />
           <Route path="/publications" element={<Publications />} />
           <Route path="/public-portal" element={<PublicPortal />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/Home" element={<HomePage />} />
+          <Route path="/water-management" element={<WaterManagement />} />
+          <Route path="/waste-management" element={<WasteManagement />} />
+          <Route path="/governance" element={<Governance />} />
+          <Route path="/mrv" element={<MRV />} />
+          <Route path="/mitigation" element={<Mitigation />} />
+          <Route path="/adaptation" element={<Adaptation />} />
+          <Route path="/finance-technology-transfer" element={<FinanceTechnologyTransfer />} />
+          <Route path="/county/:name" element={<CountyPage />} />
+          <Route path="/dashboard" element={<Index />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -8,7 +8,7 @@ export function Sidebar() {
   const isActive = (path: string) => location.pathname === path;
 
   const navItems = [
-    { label: "Home", icon: Home, path: "/" },
+    { label: "Home", icon: Home, path: "/dashboard" },
     { label: "Thematic Areas", icon: Grid, path: "/thematic-areas" },
     { label: "Publications", icon: BookOpen, path: "/publications" },
     { label: "Indicators", icon: BarChart3, path: "/indicators" },
@@ -57,7 +57,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="border-t border-sidebar-border p-4 space-y-2">
         <Link
-          to="/public-portal"
+          to="/"
           className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-border/30 transition-colors"
         >
           <Globe size={20} />
