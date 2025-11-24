@@ -25,7 +25,7 @@ import MRV from "./pages/MRVPage";
 import Mitigation from "./pages/MitigationPage";
 import Adaptation from "./pages/AdaptationPage";
 import FinanceTechnologyTransfer from "./pages/FinanceTechnologyTransferPage";
-import CountyPage from "./pages/County/[Name]";
+import CountyPage from "./pages/County";
 
 const queryClient = new QueryClient();
 
