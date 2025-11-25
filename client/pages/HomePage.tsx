@@ -87,9 +87,10 @@ export default function Home() {
     const rawData = activeTab === "water" ? waterSummaryData : wasteSummaryData;
 
     const rankedData: RankedCounty[] = rawData
+        .filter((item): item is CountySummaryPerformance => !!item && typeof item.score === "number")
         .map((item, index) => ({ ...item, rank: index + 1 }))
         .sort((a, b) => b.score - a.score)
-        .map((item, index) => ({ ...item, rank: index + 1 }))
+        .map((_, index) => ({ ...rawData[index], rank: index + 1 }))
 
     const getPerformanceBadge = (score: number) => {
         if (score >= 90) return { text: "Outstanding", color: "bg-green-600" }
@@ -97,6 +98,15 @@ export default function Home() {
         if (score >= 60) return { text: "Good", color: "bg-yellow-500 text-black" }
         return { text: "Needs Improvement", color: "bg-orange-500 text-black" }
     }
+
+    //     const getCountyName = (item: CountySummaryPerformance) => {
+    //     return item.name || item.county || item.county_name || "Unknown County"
+    //   }
+
+    //   const getCountySlug = (item: CountySummaryPerformance) => {
+    //     const name = getCountyName(item)
+    //     return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+    //   }
 
     return (
         <main>
@@ -159,24 +169,26 @@ export default function Home() {
                                             </thead>
                                             <tbody>
                                                 {rankedData
-                                                    .map((item, index) => ({ ...item, rank: index + 1 })) // Add rank
-                                                    .sort((a, b) => b.score - a.score) // Sort by score descending
+                                                    .filter((row): row is RankedCounty => !!row?.name)
                                                     .map((row) => {
                                                         const perf = getPerformanceBadge(row.score)
+                                                        const slug = row.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
                                                         return (
                                                             <tr key={row.name} className="border-b hover:bg-slate-50 transition">
                                                                 <td className="px-6 py-4 font-semibold">#{row.rank}</td>
                                                                 <td className="px-6 py-4">
                                                                     <Link
-                                                                        to={`/county/${row.name.toLowerCase().replace(/\s+/g, "-")}`}
+                                                                        to={`/county/${slug}`}
                                                                         className="text-blue-600 hover:underline font-medium"
                                                                     >
                                                                         {row.name}
                                                                     </Link>
                                                                 </td>
-                                                                <td className="px-6 py-4 text-center font-bold">{row.score.toFixed(1)}</td>
+                                                                <td className="px-6 py-4 text-center font-bold">
+                                                                    {row.score.toFixed(1)}
+                                                                </td>
                                                                 <td className="px-6 py-4 text-center">
-                                                                    <Badge className={`rounded-full px-4 py-1.5 text-white font-medium ${perf.color}`}>
+                                                                    <Badge className={`rounded-full px-4 py-1.5 font-medium ${perf.color}`}>
                                                                         {perf.text}
                                                                     </Badge>
                                                                 </td>
