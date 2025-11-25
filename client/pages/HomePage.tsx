@@ -18,12 +18,20 @@ interface Publication {
     summary: string;
 }
 
+// 
+
+// Local type for table display (with rank + performance)
+interface RankedCounty extends CountySummaryPerformance {
+    rank: number
+}
+
+
 export default function Home() {
     const [activeTab, setActiveTab] = useState("water")
     const [thematicAreas, setThematicAreas] = useState<ThematicArea[]>([])
     const [publications, setPublications] = useState<Publication[]>([])
     const [waterSummaryData, setWaterSummaryData] = useState<CountySummaryPerformance[]>([])
-    const [wasteSummaryData, setWasteSummaryPerformance] = useState<CountySummaryPerformance[]>([])
+    const [wasteSummaryData, setWasteSummaryData] = useState<CountySummaryPerformance[]>([])
 
     const [loadingThematicAreas, setLoadingThematicAreas] = useState(true)
     const [loadingPublications, setLoadingPublications] = useState(true)
@@ -58,23 +66,37 @@ export default function Home() {
 
         const fetchSummaryData = async () => {
             try {
-                const waterData = await api.getCountySummaryPerformance("water");
-                setWaterSummaryData(waterData);
-                const wasteData = await api.getCountySummaryPerformance("waste");
-                setWasteSummaryPerformance(wasteData);
+                const [waterData, wasteData] = await Promise.all([
+                    api.getCountySummaryPerformance("water"),
+                    api.getCountySummaryPerformance("waste")
+                ])
+                setWaterSummaryData(waterData)
+                setWasteSummaryData(wasteData)
             } catch (error: any) {
-                setErrorSummaryData(error.message || "Failed to fetch summary data");
+                setErrorSummaryData(error.message || "Failed to load county performance")
             } finally {
-                setLoadingSummaryData(false);
+                setLoadingSummaryData(false)
             }
-        };
+        }
 
         fetchThematicAreas();
         fetchPublications();
         fetchSummaryData();
     }, []);
 
-    const summaryData = activeTab === "water" ? waterSummaryData : wasteSummaryData;
+    const rawData = activeTab === "water" ? waterSummaryData : wasteSummaryData;
+
+    const rankedData: RankedCounty[] = rawData
+        .map((item, index) => ({ ...item, rank: index + 1 }))
+        .sort((a, b) => b.score - a.score)
+        .map((item, index) => ({ ...item, rank: index + 1 }))
+
+    const getPerformanceBadge = (score: number) => {
+        if (score >= 90) return { text: "Outstanding", color: "bg-green-600" }
+        if (score >= 75) return { text: "Satisfactory", color: "bg-emerald-600" }
+        if (score >= 60) return { text: "Good", color: "bg-yellow-500 text-black" }
+        return { text: "Needs Improvement", color: "bg-orange-500 text-black" }
+    }
 
     return (
         <main>
@@ -136,34 +158,31 @@ export default function Home() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {summaryData.map((row) => (
-                                                    <tr key={row.rank} className="border-b hover:bg-slate-50 transition">
-                                                        <td className="px-6 py-4 font-semibold">{row.rank}</td>
-                                                        <td className="px-6 py-4">
-                                                            <Link
-                                                                to={`/county/${row.county.toLowerCase().replace(/\s+/g, "-")}`}
-                                                                className="text-blue-600 hover:underline font-medium"
-                                                            >
-                                                                {row.county}
-                                                            </Link>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-center font-bold">{row.indexScore}</td>
-                                                        <td className="px-6 py-4 text-center">
-                                                            <Badge
-                                                                className={`rounded-full px-4 py-1.5 text-white font-medium ${row.performance === "Outstanding"
-                                                                    ? "bg-green-600"
-                                                                    : row.performance === "Satisfactory"
-                                                                        ? "bg-emerald-600"
-                                                                        : row.performance === "Good"
-                                                                            ? "bg-yellow-500 text-black"
-                                                                            : "bg-orange-500 text-black"
-                                                                    }`}
-                                                            >
-                                                                {row.performance}
-                                                            </Badge>
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {rankedData
+                                                    .map((item, index) => ({ ...item, rank: index + 1 })) // Add rank
+                                                    .sort((a, b) => b.score - a.score) // Sort by score descending
+                                                    .map((row) => {
+                                                        const perf = getPerformanceBadge(row.score)
+                                                        return (
+                                                            <tr key={row.name} className="border-b hover:bg-slate-50 transition">
+                                                                <td className="px-6 py-4 font-semibold">#{row.rank}</td>
+                                                                <td className="px-6 py-4">
+                                                                    <Link
+                                                                        to={`/county/${row.name.toLowerCase().replace(/\s+/g, "-")}`}
+                                                                        className="text-blue-600 hover:underline font-medium"
+                                                                    >
+                                                                        {row.name}
+                                                                    </Link>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-center font-bold">{row.score.toFixed(1)}</td>
+                                                                <td className="px-6 py-4 text-center">
+                                                                    <Badge className={`rounded-full px-4 py-1.5 text-white font-medium ${perf.color}`}>
+                                                                        {perf.text}
+                                                                    </Badge>
+                                                                </td>
+                                                            </tr>
+                                                        )
+                                                    })}
                                             </tbody>
                                         </table>
                                     </div>

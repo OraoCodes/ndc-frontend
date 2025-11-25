@@ -24,11 +24,15 @@ export interface AuthResponse {
   user: User;
 }
 
+// export interface CountySummaryPerformance {
+//   rank: number;
+//   county: string;
+//   indexScore: number;
+//   performance: string;
+// }
 export interface CountySummaryPerformance {
-  rank: number;
-  county: string;
-  indexScore: number;
-  performance: string;
+  name: string
+  score: number
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {

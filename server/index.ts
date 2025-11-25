@@ -33,7 +33,7 @@ export async function createServer() {
   app.use("/api/indicators", createIndicatorsRoutes(db))
 
 
-  app.use("/api/counties", createSummaryRoutes(db))
+  app.use("/api/summary", createSummaryRoutes(db))
   // Example API routes
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";
