@@ -26,6 +26,9 @@ import Mitigation from "./pages/MitigationPage";
 import Adaptation from "./pages/AdaptationPage";
 import FinanceTechnologyTransfer from "./pages/FinanceTechnologyTransferPage";
 import CountyPage from "./pages/County";
+import { AuthProvider } from "./context/AuthContext";
+import PrivateRoute from "./components/PrivateRoute";
+import CountyScoringPage from "./pages/IndicatorPage";
 
 const queryClient = new QueryClient();
 
@@ -35,31 +38,43 @@ export const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/counties" element={<Counties />} />
-          <Route path="/counties-list" element={<CountiesList />} />
-          <Route path="/county-data" element={<CountyData />} />
-          <Route path="/thematic-areas" element={<ThematicAreas />} />
-          <Route path="/thematic-areas/add" element={<AddThematicArea />} />
-          <Route path="/indicators" element={<Index />} />
-          <Route path="/publications" element={<Publications />} />
-          <Route path="/public-portal" element={<PublicPortal />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/Home" element={<HomePage />} />
-          <Route path="/water-management" element={<WaterManagement />} />
-          <Route path="/waste-management" element={<WasteManagement />} />
-          <Route path="/governance" element={<Governance />} />
-          <Route path="/mrv" element={<MRV />} />
-          <Route path="/mitigation" element={<Mitigation />} />
-          <Route path="/adaptation" element={<Adaptation />} />
-          <Route path="/finance-technology-transfer" element={<FinanceTechnologyTransfer />} />
-          <Route path="/county/:name" element={<CountyPage />} />
-          <Route path="/dashboard" element={<Index />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/public-portal" element={<PublicPortal />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/Home" element={<HomePage />} />
+            <Route path="/county/:countyName" element={<CountyPage />} />
+            <Route path="/water-management" element={<WaterManagement />} />
+            <Route path="/waste-management" element={<WasteManagement />} />
+            <Route path="/governance" element={<Governance />} />
+            <Route path="/mrv" element={<MRV />} />
+            <Route path="/mitigation" element={<Mitigation />} />
+            <Route path="/adaptation" element={<Adaptation />} />
+            <Route path="/finance-technology-transfer" element={<FinanceTechnologyTransfer />} />
+            <Route path="/dashboard" element={<Index />} />
+            <Route path="/counties-list" element={<CountiesList />} />
+            <Route path="/county-data" element={<CountyData />} />
+            <Route path="/indicators" element={<CountyScoringPage />} />
+
+            {/* Protected Routes */}
+            <Route element={<PrivateRoute />}>
+              <Route path="/counties" element={<Counties />} />
+              <Route path="/thematic-areas" element={<ThematicAreas />} />
+              <Route path="/thematic-areas/add" element={<AddThematicArea />} />
+
+              <Route path="/publications" element={<Publications />} />
+
+
+
+
+            </Route>
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

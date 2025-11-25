@@ -11,7 +11,7 @@ export function Sidebar() {
     { label: "Home", icon: Home, path: "/dashboard" },
     { label: "Thematic Areas", icon: Grid, path: "/thematic-areas" },
     { label: "Publications", icon: BookOpen, path: "/publications" },
-    { label: "Indicators", icon: BarChart3, path: "/indicators" },
+    // { label: "Indicators", icon: BarChart3, path: "/indicators" },
     { label: "Counties", icon: MapPin, path: "/counties-list" },
   ];
 

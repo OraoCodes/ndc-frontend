@@ -6,98 +6,67 @@ import { api, type ThematicArea } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from "react-router-dom";
 
-interface Indicator {
-  thematicArea: string;
-  indicator: string;
-  score: string;
-}
-
-const waterIndicators: Indicator[] = [
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
+// Define your real indicators (you can expand these)
+const WATER_INDICATORS = [
+  { id: "w1", thematicArea: "Governance", indicator: "Climate change coordination unit established", weight: 5 },
+  { id: "w2", thematicArea: "Governance", indicator: "County climate change act enacted", weight: 5 },
+  { id: "w3", thematicArea: "MRV", indicator: "Water sector GHG inventory completed", weight: 4 },
+  { id: "w4", thematicArea: "Mitigation", indicator: "Water efficiency programs implemented", weight: 6 },
+  { id: "w5", thematicArea: "Adaptation", indicator: "Drought early warning system operational", weight: 6 },
+  { id: "w6", thematicArea: "Finance", indicator: "Climate budget tagging system in place", weight: 4 },
 ];
 
-const wasteIndicators: Indicator[] = [
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
-  {
-    thematicArea: "Governance",
-    indicator: "Number of institutional arrangements reviewed and restructured for climate action",
-    score: "",
-  },
+const WASTE_INDICATORS = [
+  { id: "s1", thematicArea: "Governance", indicator: "County waste management policy adopted", weight: 5 },
+  { id: "s2", thematicArea: "Governance", indicator: "Waste collection by-laws enforced", weight: 5 },
+  { id: "s3", thematicArea: "MRV", indicator: "Waste sector GHG emissions tracked", weight: 4 },
+  { id: "s4", thematicArea: "Mitigation", indicator: "Landfill gas capture project active", weight: 7 },
+  { id: "s5", thematicArea: "Adaptation", indicator: "Circular economy initiatives launched", weight: 5 },
+  { id: "s6", thematicArea: "Finance", indicator: "Waste revenue used for climate projects", weight: 4 },
 ];
 
 export default function CountyData() {
   const [county, setCounty] = useState("");
-  const [year, setYear] = useState("");
+  const [year, setYear] = useState("2025");
   const [population, setPopulation] = useState<number | "">("");
   const [thematicAreaId, setThematicAreaId] = useState<number | null>(null);
 
-  // indicator scores kept in local state (not persisted by current backend)
-  const [waterScores, setWaterScores] = useState<string[]>(() => waterIndicators.map(() => ""));
-  const [wasteScores, setWasteScores] = useState<string[]>(() => wasteIndicators.map(() => ""));
+  // Scores state
+  const [waterScores, setWaterScores] = useState<Record<string, string>>({});
+  const [wasteScores, setWasteScores] = useState<Record<string, string>>({});
 
-  // load thematic areas for select
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const editingId = (location.state as any)?.countyId as number | undefined;
+
+  // Load thematic areas
   const { data: thematicAreas } = useQuery<ThematicArea[]>({
     queryKey: ["thematicAreas"],
     queryFn: api.listThematicAreas,
   });
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const navigate = useNavigate();
 
-  // detect edit mode via location state: { countyId }
-  const location = useLocation();
-  const editingId = (location.state as any)?.countyId as number | undefined;
-
-  // If editing, fetch the county and populate form
+  // Load existing county
   const { data: existingCounty } = useQuery({
     queryKey: ["county", editingId],
-    queryFn: () => (editingId ? api.getCounty(Number(editingId)) : Promise.resolve(null as any)),
+    queryFn: () => (editingId ? api.getCounty(Number(editingId)) : Promise.resolve(null)),
     enabled: !!editingId,
   });
 
+  // Load existing performance data
+  const { data: existingPerformance } = useQuery({
+    queryKey: ["countyPerformance", editingId, year],
+    queryFn: async () => {
+      if (!editingId || !year) return null;
+      const res = await fetch(`/api/counties/${editingId}/performance?year=${year}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!editingId && !!year,
+  });
+
+  // Populate form when editing
   useEffect(() => {
     if (existingCounty) {
       setCounty(existingCounty.name ?? "");
@@ -106,229 +75,224 @@ export default function CountyData() {
     }
   }, [existingCounty]);
 
-  const createMutation = useMutation({
-    mutationFn: (payload: { name: string; population?: number | null; thematic_area_id?: number | null }) =>
-      api.createCounty(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["counties"] });
-      toast({ title: "Saved", description: "County created successfully." });
-      setCounty("");
-      setYear("");
-      setPopulation("");
-      setThematicAreaId(null);
-      setWaterScores(waterIndicators.map(() => ""));
-      setWasteScores(wasteIndicators.map(() => ""));
-      navigate("/counties-list");
-    },
-    onError: (err: any) => {
-      toast({ title: "Error", description: err?.message ?? "Failed to create county" });
-    },
-  });
+  // Populate scores when performance data loads
+  useEffect(() => {
+    if (existingPerformance) {
+      // Map water indicators
+      if (existingPerformance.waterIndicators?.length > 0) {
+        const scoreMap: Record<string, string> = {};
+        existingPerformance.waterIndicators.forEach((ind: any, i: number) => {
+          const key = WATER_INDICATORS[i]?.id || `w${i}`;
+          scoreMap[key] = ind.score?.toString() || "";
+        });
+        setWaterScores(scoreMap);
+      }
 
-  const updateMutation = useMutation({
-    mutationFn: (payload: { id: number; name: string; population?: number | null; thematic_area_id?: number | null }) =>
-      api.updateCounty(payload.id, { name: payload.name, population: payload.population, thematic_area_id: payload.thematic_area_id }),
+      // Map waste indicators
+      if (existingPerformance.wasteIndicators?.length > 0) {
+        const scoreMap: Record<string, string> = {};
+        existingPerformance.wasteIndicators.forEach((ind: any, i: number) => {
+          const key = WASTE_INDICATORS[i]?.id || `s${i}`;
+          scoreMap[key] = ind.score?.toString() || "";
+        });
+        setWasteScores(scoreMap);
+      }
+    }
+  }, [existingPerformance]);
+
+  // Helper: calculate sector score
+  const calculateSectorScore = (scores: Record<string, string>, indicators: typeof WATER_INDICATORS) => {
+    let totalWeighted = 0;
+    let totalWeight = 0;
+    indicators.forEach(ind => {
+      const score = parseFloat(scores[ind.id] || "0") || 0;
+      totalWeighted += score * ind.weight;
+      totalWeight += ind.weight;
+    });
+    return totalWeight > 0 ? (totalWeighted / totalWeight) : 0;
+  };
+
+  // Save county + performance
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!county || !year) throw new Error("County and year are required");
+
+      // 1. Create/Update county
+      let countyId = editingId;
+      if (!editingId) {
+        const res = await api.createCounty({ name: county, population: population || null, thematic_area_id: thematicAreaId });
+        countyId = res.id;
+      } else {
+        await api.updateCounty(editingId, { name: county, population: population || null, thematic_area_id: thematicAreaId });
+      }
+
+      if (!countyId) throw new Error("Failed to get county ID");
+
+      // 2. Save Water performance
+      const waterScore = calculateSectorScore(waterScores, WATER_INDICATORS);
+      const waterIndicators = WATER_INDICATORS.map(ind => ({
+        indicator: ind.indicator,
+        description: "",
+        score: parseFloat(waterScores[ind.id] || "0") || 0,
+      }));
+
+      await fetch(`/api/counties/${countyId}/performance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          year: Number(year),
+          sector: "water",
+          sector_score: waterScore,
+          overall_score: waterScore,
+          indicators: waterIndicators,
+        }),
+      });
+
+      // 3. Save Waste performance
+      const wasteScore = calculateSectorScore(wasteScores, WASTE_INDICATORS);
+      const wasteIndicators = WASTE_INDICATORS.map(ind => ({
+        indicator: ind.indicator,
+        description: "",
+        score: parseFloat(wasteScores[ind.id] || "0") || 0,
+      }));
+
+      await fetch(`/api/counties/${countyId}/performance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          year: Number(year),
+          sector: "waste",
+          sector_score: wasteScore,
+          overall_score: wasteScore,
+          indicators: wasteIndicators,
+        }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["counties"] });
-      toast({ title: "Saved", description: "County updated successfully." });
+      queryClient.invalidateQueries({ queryKey: ["countyPerformance"] });
+      toast({ title: "Success", description: "County data saved successfully!" });
       navigate("/counties-list");
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err?.message ?? "Failed to update county" });
+      toast({ title: "Error", description: err.message || "Failed to save data" });
     },
   });
 
   return (
     <MainLayout>
-      <div className="max-w-4xl space-y-6">
-        {/* Header */}
+      <div className="max-w-6xl space-y-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-foreground">County Data</h2>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1 bg-green-100 rounded text-xs font-medium text-green-800">
-              <CheckCircle size={16} />
-              A
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded text-xs font-medium text-red-800">
-              <AlertCircle size={16} />
-              A
-            </div>
-            <span className="text-xs text-muted-foreground ml-2">Last edited at 15.2025</span>
-          </div>
+          <h2 className="text-3xl font-bold text-foreground">
+            {editingId ? "Edit" : "Add"} County Performance Data
+          </h2>
         </div>
 
-        <div className="bg-white rounded-lg p-6 border border-border space-y-6">
-          {/* County and Year Selectors */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* County */}
+        <div className="bg-white rounded-xl shadow-sm border border-border p-8 space-y-8">
+          {/* County & Year */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                County
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Select county"
-                  value={county}
-                  onChange={(e) => setCounty(e.target.value)}
-                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
+              <label className="block text-sm font-semibold mb-2">County Name</label>
+              <input
+                type="text"
+                value={county}
+                onChange={(e) => setCounty(e.target.value)}
+                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. Nairobi"
+              />
             </div>
-
-            {/* Year */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Year
-              </label>
-              <div className="relative">
-                <select
-                  value={year}
-                  onChange={(e) => setYear(e.target.value)}
-                  className="w-full px-4 py-2 pr-10 bg-white border border-input rounded-lg text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">Select Year</option>
-                  <option value="2024">2024</option>
-                  <option value="2025">2025</option>
-                  <option value="2026">2026</option>
-                </select>
-                <ChevronDown
-                  size={18}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none"
-                />
-              </div>
+              <label className="block text-sm font-semibold mb-2">Year</label>
+              <select
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="w-full px-4 py-3 border rounded-lg"
+              >
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
+              </select>
             </div>
-          </div>
-
-          {/* Population and Thematic Area */}
-          <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Population</label>
+              <label className="block text-sm font-semibold mb-2">Population (optional)</label>
               <input
                 type="number"
                 value={population}
                 onChange={(e) => setPopulation(e.target.value === "" ? "" : Number(e.target.value))}
-                placeholder="Population"
-                className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 border rounded-lg"
+                placeholder="4,397,073"
               />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Thematic Area</label>
-              <select
-                value={thematicAreaId ?? ""}
-                onChange={(e) => setThematicAreaId(e.target.value ? Number(e.target.value) : null)}
-                className="w-full px-4 py-2 pr-10 bg-white border border-input rounded-lg text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Unassigned</option>
-                {thematicAreas?.map((ta) => (
-                  <option key={ta.id} value={ta.id}>{ta.name}</option>
-                ))}
-              </select>
-              <ChevronDown size={18} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          {/* Water Management */}
+          <div className="border-t pt-8">
+            <h3 className="text-xl font-bold text-blue-700 mb-6">Water Management Indicators</h3>
+            <div className="space-y-4">
+              {WATER_INDICATORS.map((ind) => (
+                <div key={ind.id} className="flex items-center gap-6 p-4 bg-blue-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{ind.thematicArea}</div>
+                    <div className="text-sm text-gray-600 mt-1">{ind.indicator}</div>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={waterScores[ind.id] || ""}
+                    onChange={(e) => setWaterScores(prev => ({ ...prev, [ind.id]: e.target.value }))}
+                    className="w-24 px-3 py-2 border rounded-lg text-center font-semibold"
+                    placeholder="0-10"
+                  />
+                  <span className="text-sm text-gray-500">Weight: {ind.weight}</span>
+                </div>
+              ))}
+              <div className="text-right font-bold text-lg text-blue-700">
+                Sector Score: {calculateSectorScore(waterScores, WATER_INDICATORS).toFixed(1)}
+              </div>
             </div>
           </div>
 
-          {/* Water Management Section */}
-          <div>
-            <h3 className="text-sm font-semibold text-foreground mb-4">
-              Water Management
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-background border-b border-border">
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">
-                      Thematic Area
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">
-                      Indicator
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">
-                      Score
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {waterIndicators.map((indicator, index) => (
-                    <tr key={index} className="border-b border-border hover:bg-background/50">
-                      <td className="py-3 px-4 text-foreground">
-                        {indicator.thematicArea}
-                      </td>
-                      <td className="py-3 px-4 text-foreground">
-                        {indicator.indicator}
-                      </td>
-                      <td className="py-3 px-4">
-                        <input
-                          type="text"
-                          placeholder="Enter score"
-                          className="w-20 px-2 py-1 border border-input rounded text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Waste Management Section */}
-          <div>
-            <h3 className="text-sm font-semibold text-foreground mb-4">
-              Waste Management
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-background border-b border-border">
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">
-                      Thematic Area
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">
-                      Indicator
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">
-                      Score
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {wasteIndicators.map((indicator, index) => (
-                    <tr key={index} className="border-b border-border hover:bg-background/50">
-                      <td className="py-3 px-4 text-foreground">
-                        {indicator.thematicArea}
-                      </td>
-                      <td className="py-3 px-4 text-foreground">
-                        {indicator.indicator}
-                      </td>
-                      <td className="py-3 px-4">
-                        <input
-                          type="text"
-                          placeholder="Enter score"
-                          className="w-20 px-2 py-1 border border-input rounded text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Waste Management */}
+          <div className="border-t pt-8">
+            <h3 className="text-xl font-bold text-green-700 mb-6">Waste Management Indicators</h3>
+            <div className="space-y-4">
+              {WASTE_INDICATORS.map((ind) => (
+                <div key={ind.id} className="flex items-center gap-6 p-4 bg-green-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{ind.thematicArea}</div>
+                    <div className="text-sm text-gray-600 mt-1">{ind.indicator}</div>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={wasteScores[ind.id] || ""}
+                    onChange={(e) => setWasteScores(prev => ({ ...prev, [ind.id]: e.target.value }))}
+                    className="w-24 px-3 py-2 border rounded-lg text-center font-semibold"
+                    placeholder="0-10"
+                  />
+                  <span className="text-sm text-gray-500">Weight: {ind.weight}</span>
+                </div>
+              ))}
+              <div className="text-right font-bold text-lg text-green-700">
+                Sector Score: {calculateSectorScore(wasteScores, WASTE_INDICATORS).toFixed(1)}
+              </div>
             </div>
           </div>
 
           {/* Save Button */}
-          <button
-            onClick={() => {
-              const payload = { name: county, population: population === "" ? null : Number(population), thematic_area_id: thematicAreaId };
-              if (editingId) {
-                updateMutation.mutate({ id: Number(editingId), ...payload });
-              } else {
-                createMutation.mutate(payload);
-              }
-            }}
-            className="w-full px-4 py-2 bg-sidebar text-sidebar-foreground rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
-          >
-            {createMutation.status === "pending" || updateMutation.status === "pending" ? "Saving..." : editingId ? "Update" : "Save"}
-          </button>
+          <div className="flex justify-end pt-6">
+            <button
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || !county || !year}
+              className="px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {saveMutation.isPending ? "Saving..." : editingId ? "Update Data" : "Save County Data"}
+            </button>
+          </div>
         </div>
       </div>
     </MainLayout>

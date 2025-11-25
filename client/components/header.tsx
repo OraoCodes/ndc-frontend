@@ -44,12 +44,12 @@ export function Header({ currentPage }: HeaderProps) {
                     >
                         HOME
                     </Link>
-                    <Link
+                    {/* <Link
                         to="/counties"
                         className={`transition-colors ${currentPage === "counties" ? "text-blue-600 font-semibold" : "text-gray-700 hover:text-blue-600"}`}
                     >
                         COUNTIES
-                    </Link>
+                    </Link> */}
                     <Link
                         to="/water-management"
                         className={`transition-colors ${currentPage === "water" ? "text-blue-600 font-semibold" : "text-gray-700 hover:text-blue-600"}`}
@@ -62,12 +62,12 @@ export function Header({ currentPage }: HeaderProps) {
                     >
                         WASTE MANAGEMENT
                     </Link>
-                    <Link
+                    {/* <Link
                         to="/about"
                         className={`transition-colors ${currentPage === "about" ? "text-blue-600 font-semibold" : "text-gray-700 hover:text-blue-600"}`}
                     >
                         ABOUT THE TOOL
-                    </Link>
+                    </Link> */}
                 </nav>
 
                 {/* Login / Sign Up Buttons */}

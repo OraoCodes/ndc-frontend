@@ -6,6 +6,8 @@ import { handleDemo } from "./routes/demo";
 import { setupDatabase } from "./db/setup";
 import { createThematicAreasRoutes } from "./routes/thematicAreas";
 import { createCountiesRoutes } from "./routes/counties";
+import { createIndicatorsRoutes } from "./routes/indicator"
+import authRouter from "./routes/auth";
 
 /**
  * Create and return an Express app wired with routes and middleware.
@@ -23,10 +25,11 @@ export async function createServer() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // API routes
+  app.use('/api/auth', authRouter); // New authentication routes
   app.use("/api/thematic-areas", createThematicAreasRoutes(db));
   app.use("/api/counties", createCountiesRoutes(db));
   app.use("/api/publications", (await import("./routes/publications")).createPublicationsRoutes(db));
-
+  app.use("/api/indicators", createIndicatorsRoutes(db))
   // Example API routes
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";

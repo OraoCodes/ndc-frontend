@@ -6,8 +6,11 @@ import { AuthLayout } from "@/components/auth-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
+import { useNavigate, Link } from "react-router-dom"
 
 export default function SignupPage() {
+    const navigate = useNavigate()
+    const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
         fullName: "",
         email: "",
@@ -26,11 +29,42 @@ export default function SignupPage() {
         }))
     }
 
-    const handleSubmit = (e) => {
-        e.preventDefault()
-        // Handle signup logic here
-        console.log("Signup attempt:", formData)
+ const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    if (!formData.termsAgreed) {
+        alert("You must agree to the terms and conditions");
+        setLoading(false);
+        return;
     }
+
+    try {
+        const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(formData),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.message || "Registration failed");
+            setLoading(false);
+            return;
+        }
+
+        // Only reaches here on real success
+        
+        navigate("/dashboard");   // This will work now
+
+    } catch (error) {
+        console.error("Network error:", error);
+        alert("Failed to connect to server");
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <AuthLayout title="Create an Account" description="Please create an account to add data to the NDC tool">
@@ -145,10 +179,24 @@ export default function SignupPage() {
 
                 <Button
                     size="default"
-                    className="w-full bg-gray-800 hover:bg-gray-900 text-white py-2 rounded-md font-medium mt-6"
+                    className="w-full bg-gray-800 hover:bg-gray-900 text-white py-6 rounded-md font-medium mt-6"
+                    disabled={loading}
                 >
-                    Create Account
+                    {loading ? "Creating Account..." : "Create Account"}
                 </Button>
+
+                <div className="mt-8 text-center">
+                <p className="text-sm text-gray-600">
+                    Already have an account?{" "}
+                    <Link
+                        to="/login"
+                        className="font-medium text-blue-600 hover:text-blue-800 underline-offset-4 hover:underline transition"
+                    >
+                        Login
+                    </Link>
+                </p>
+            </div>
+
 
             </form>
         </AuthLayout>

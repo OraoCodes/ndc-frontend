@@ -31,6 +31,38 @@ export async function setupDatabase() {
       filename TEXT,
       file_blob BLOB
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fullName TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        organisation TEXT,
+        phoneNumber TEXT,
+        position TEXT,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS county_performance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      county_id INTEGER NOT NULL,
+      year INTEGER NOT NULL,
+      sector TEXT NOT NULL CHECK(sector IN ('water', 'waste')),
+      overall_score REAL,
+      sector_score REAL,
+      governance REAL,
+      mrv REAL,
+      mitigation REAL,
+      adaptation REAL,
+      finance REAL,
+      indicators_json TEXT, 
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP, 
+      FOREIGN KEY (county_id) REFERENCES counties (id),
+      UNIQUE(county_id, year, sector)
+    );
   `);
 
   return db;

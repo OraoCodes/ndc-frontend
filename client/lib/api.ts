@@ -11,6 +11,26 @@ export interface County {
   thematic_area_id?: number | null;
 }
 
+export interface User {
+  id: number;
+  fullName: string;
+  email: string;
+  role: string;
+}
+
+export interface AuthResponse {
+  message: string;
+  token: string;
+  user: User;
+}
+
+export interface CountySummaryPerformance {
+  rank: number;
+  county: string;
+  indexScore: number;
+  performance: string;
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   // Respect Vite env var `VITE_API_BASE` when set. If not set, use same origin.
   // `import.meta.env` is provided by Vite at build/dev time.
@@ -26,6 +46,18 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Authentication
+  register: async (payload: any): Promise<AuthResponse> => request<AuthResponse>('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }),
+  login: async (payload: any): Promise<AuthResponse> => request<AuthResponse>('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }),
+
   // Thematic Areas
   listThematicAreas: async (): Promise<ThematicArea[]> => request<ThematicArea[]>('/api/thematic-areas'),
   getThematicArea: async (id: number): Promise<ThematicArea> => request<ThematicArea>(`/api/thematic-areas/${id}`),
@@ -35,9 +67,26 @@ export const api = {
   // Counties
   listCounties: async (): Promise<County[]> => request<County[]>('/api/counties'),
   getCounty: async (id: number): Promise<County> => request<County>(`/api/counties/${id}`),
-  createCounty: async (payload: { name: string; population?: number; thematic_area_id?: number }) => request(`/api/counties`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
-  updateCounty: async (id: number, payload: { name: string; population?: number; thematic_area_id?: number }) => request(`/api/counties/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
-  deleteCounty: async (id: number) => request(`/api/counties/${id}`, { method: 'DELETE' }),
+  createCounty: async (payload: {
+    name: string;
+    population?: number;
+    thematic_area_id?: number;
+  }): Promise<County> => request<County>('/api/counties', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }),
+  updateCounty: async (
+    id: number,
+    payload: { name: string; population?: number; thematic_area_id?: number }
+  ): Promise<County> => request<County>(`/api/counties/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }),
+  deleteCounty: async (id: number) => request<void>(`/api/counties/${id}`, { method: 'DELETE' }),
+  getCountySummaryPerformance: async (thematicArea: string): Promise<CountySummaryPerformance[]> => request<CountySummaryPerformance[]>(`/api/counties/summary-performance/${thematicArea}`),
+
   // Publications
   listPublications: async (): Promise<any[]> => request<any[]>('/api/publications'),
   getPublication: async (id: number): Promise<any> => request<any>(`/api/publications/${id}`),
