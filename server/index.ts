@@ -26,21 +26,21 @@ export async function createServer() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // API routes
-  app.use('/api/auth', authRouter); // New authentication routes
-  app.use("/api/thematic-areas", createThematicAreasRoutes(db));
-  app.use("/api/counties", createCountiesRoutes(db));
-  app.use("/api/publications", (await import("./routes/publications")).createPublicationsRoutes(db));
-  app.use("/api/indicators", createIndicatorsRoutes(db))
+  app.use('/auth', authRouter); // New authentication routes
+  app.use("/thematic-areas", createThematicAreasRoutes(db));
+  app.use("/counties", createCountiesRoutes(db));
+  app.use("/publications", (await import("./routes/publications")).createPublicationsRoutes(db));
+  app.use("/indicators", createIndicatorsRoutes(db))
 
 
-  app.use("/api/summary", createSummaryRoutes(db))
+  app.use("/counties/summary-performance", createSummaryRoutes(db))
   // Example API routes
-  app.get("/api/ping", (_req, res) => {
+  app.get("/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";
     res.json({ message: ping });
   });
 
-  app.get("/api/demo", handleDemo);
+  app.get("/demo", handleDemo);
 
   // In production the built SPA can be served from the `spa` folder.
   if (process.env.NODE_ENV === "production") {

@@ -28,13 +28,13 @@ npm run build
 
 echo "Ensuring $SPA_DST exists and copying built SPA files..."
 sudo mkdir -p "$SPA_DST"
-sudo rsync -a --delete "$REPO_DIR/dist/spa/" "$SPA_DST/"
+sudo rsync -a --delete "$REPO_DIR/../dist/spa/" "$SPA_DST/"
 sudo chown -R www-data:www-data "$WWW_DIR"
 
 echo "Copying server build to $WWW_DIR/dist/server (so systemd can run Node entry)"
 sudo mkdir -p "$WWW_DIR/dist/server"
 if [ -d "$REPO_DIR/dist/server" ]; then
-  sudo rsync -a --delete "$REPO_DIR/dist/server/" "$WWW_DIR/dist/server/"
+  sudo rsync -a --delete "$REPO_DIR/../dist/server/" "$WWW_DIR/dist/server/"
 else
   echo "Warning: $REPO_DIR/dist/server not found; build may have failed or server was not built." >&2
 fi
@@ -42,9 +42,9 @@ sudo chown -R www-data:www-data "$WWW_DIR/dist/server"
 
 echo "Copying package manifests and installing production dependencies into $WWW_DIR"
 # Copy package manifests so we can install runtime deps where systemd expects them
-sudo cp -f "$REPO_DIR/package.json" "$WWW_DIR/package.json"
-if [ -f "$REPO_DIR/package-lock.json" ]; then
-  sudo cp -f "$REPO_DIR/package-lock.json" "$WWW_DIR/package-lock.json"
+sudo cp -f "$REPO_DIR/../package.json" "$WWW_DIR/package.json"
+if [ -f "$REPO_DIR/../package-lock.json" ]; then
+  sudo cp -f "$REPO_DIR/../package-lock.json" "$WWW_DIR/package-lock.json"
 fi
 if [ -f "$REPO_DIR/pnpm-lock.yaml" ]; then
   sudo cp -f "$REPO_DIR/pnpm-lock.yaml" "$WWW_DIR/pnpm-lock.yaml"

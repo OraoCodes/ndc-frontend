@@ -51,31 +51,31 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   // Authentication
-  register: async (payload: any): Promise<AuthResponse> => request<AuthResponse>('/api/auth/register', {
+  register: async (payload: any): Promise<AuthResponse> => request<AuthResponse>('/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }),
-  login: async (payload: any): Promise<AuthResponse> => request<AuthResponse>('/api/auth/login', {
+  login: async (payload: any): Promise<AuthResponse> => request<AuthResponse>('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }),
 
   // Thematic Areas
-  listThematicAreas: async (): Promise<ThematicArea[]> => request<ThematicArea[]>('/api/thematic-areas'),
-  getThematicArea: async (id: number): Promise<ThematicArea> => request<ThematicArea>(`/api/thematic-areas/${id}`),
-  createThematicArea: async (payload: { name: string; description?: string }) => request(`/api/thematic-areas`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
-  deleteThematicArea: async (id: number) => request(`/api/thematic-areas/${id}`, { method: 'DELETE' }),
+  listThematicAreas: async (): Promise<ThematicArea[]> => request<ThematicArea[]>('/thematic-areas'),
+  getThematicArea: async (id: number): Promise<ThematicArea> => request<ThematicArea>(`/thematic-areas/${id}`),
+  createThematicArea: async (payload: { name: string; description?: string }) => request(`/thematic-areas`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
+  deleteThematicArea: async (id: number) => request(`/thematic-areas/${id}`, { method: 'DELETE' }),
 
   // Counties
-  listCounties: async (): Promise<County[]> => request<County[]>('/api/counties'),
-  getCounty: async (id: number): Promise<County> => request<County>(`/api/counties/${id}`),
+  listCounties: async (): Promise<County[]> => request<County[]>('/counties'),
+  getCounty: async (id: number): Promise<County> => request<County>(`/counties/${id}`),
   createCounty: async (payload: {
     name: string;
     population?: number;
     thematic_area_id?: number;
-  }): Promise<County> => request<County>('/api/counties', {
+  }): Promise<County> => request<County>('/counties', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -83,21 +83,21 @@ export const api = {
   updateCounty: async (
     id: number,
     payload: { name: string; population?: number; thematic_area_id?: number }
-  ): Promise<County> => request<County>(`/api/counties/${id}`, {
+  ): Promise<County> => request<County>(`/counties/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }),
-  deleteCounty: async (id: number) => request<void>(`/api/counties/${id}`, { method: 'DELETE' }),
-  getCountySummaryPerformance: async (thematicArea: string): Promise<CountySummaryPerformance[]> => request<CountySummaryPerformance[]>(`/api/counties/summary-performance/${thematicArea}`),
+  deleteCounty: async (id: number) => request<void>(`/counties/${id}`, { method: 'DELETE' }),
+  getCountySummaryPerformance: async (thematicArea: string): Promise<CountySummaryPerformance[]> => request<CountySummaryPerformance[]>(`/counties/summary-performance/${thematicArea}`),
 
   // Publications
-  listPublications: async (): Promise<any[]> => request<any[]>('/api/publications'),
-  getPublication: async (id: number): Promise<any> => request<any>(`/api/publications/${id}`),
-  createPublication: async (payload: { title: string; date?: string; summary?: string; filename: string; contentBase64: string }) => request(`/api/publications`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
+  listPublications: async (): Promise<any[]> => request<any[]>('/publications'),
+  getPublication: async (id: number): Promise<any> => request<any>(`/publications/${id}`),
+  createPublication: async (payload: { title: string; date?: string; summary?: string; filename: string; contentBase64: string }) => request(`/publications`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
   downloadPublication: async (id: number) => {
     const BASE = (import.meta as any).env?.VITE_API_BASE ?? "";
-    const fullUrl = BASE ? `${BASE}/api/publications/${id}/download` : `/api/publications/${id}/download`;
+    const fullUrl = BASE ? `${BASE}/publications/${id}/download` : `/publications/${id}/download`;
     const res = await fetch(fullUrl);
     if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
     return res.blob();
