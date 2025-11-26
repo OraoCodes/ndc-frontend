@@ -21,7 +21,7 @@ export function HeroBanner({ title, description, backgroundImage }: HeroBannerPr
 
             <div className="relative z-20 max-w-7xl mx-auto px-4 md:px-6 h-full flex flex-col justify-center">
                 <h1 className="text-4xl md:text-5xl font-bold mb-4 text-pretty">{title}</h1>
-                <p className="text-lg text-slate-200 max-w-2xl">{description}</p>
+                <p className="text-lg text-slate-200 max-w-5xl">{description}</p>
             </div>
         </div>
     )

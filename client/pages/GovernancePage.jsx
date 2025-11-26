@@ -22,7 +22,7 @@ export default function Governance() {
 
             <HeroBanner
                 title="Governance"
-                description="This component examines the institutional structures, legal frameworks, policy coherence, and stakeholder engagement mechanisms that underpin climate action. It is weighted at 30%, recognizing its foundational role in enabling effective implementation and coordination across all other components."
+                description="Assesses legal frameworks, institutional capacity, coordination mechanisms, and policy alignment with climate goals. Shows if systems are in place to deliver climate action."
             />
 
             <section className="py-12 md:py-16 bg-slate-50">

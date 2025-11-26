@@ -19,7 +19,7 @@ export default function Mitigation() {
 
             <HeroBanner
                 title="Mitigation"
-                description="Focuses on actions to reduce greenhouse gas emissions in water supply, wastewater treatment, and solid waste management through efficient technologies and practices."
+                description="Looks at actions that reduce greenhouse gas emissions, for instance, renewable energy, efficiency, circular economy, clean technologies"
             />
 
             <section className="py-12 md:py-16 bg-slate-50">

@@ -31,6 +31,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import CountyScoringPage from "./pages/IndicatorPage";
 import CountyWaterPage from "./pages/Water-Management";
 import CountyWastePage from "./pages/Waste-Management";
+import AboutToolPage from "./pages/AboutToolPage";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ export const App = () => (
             <Route path="/county-data" element={<CountyData />} />
             <Route path="/indicators" element={<CountyScoringPage />} />
             <Route path="/publications" element={<Publications />} />
+            <Route path="/about-the-tool" element={<AboutToolPage />} />
 
             {/* Protected Routes */}
             <Route element={<PrivateRoute />}>

@@ -14,7 +14,7 @@ export function Footer() {
                         <h4 className="font-semibold mb-6 text-white uppercase text-sm">ABOUT</h4>
                         <ul className="space-y-3 text-sm">
                             <li>
-                                <a href="#" className="hover:text-white transition-colors">
+                                <a href="/about-the-tool" className="hover:text-white transition-colors">
                                     About the tool
                                 </a>
                             </li>

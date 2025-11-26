@@ -19,7 +19,7 @@ export default function MRV() {
 
             <HeroBanner
                 title="Measurement, Reporting and Verification (MRV)"
-                description="This component assesses the systems and processes in place for monitoring, reporting, and verifying climate actions in water and waste sectors, ensuring transparency and accountability."
+                description="Measures data availability, quality, tracking systems, and reporting mechanisms to ensure transparency and compliance with the Paris Agreement."
             />
 
             <section className="py-12 md:py-16 bg-slate-50">

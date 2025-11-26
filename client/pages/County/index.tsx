@@ -283,7 +283,7 @@ export default function CountyPage() {
                             {/* Water */}
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                                 <div className="flex items-start gap-5">
-                                    <img src="/water-drop.png" alt="Water" className="w-14 h-14 flex-shrink-0" />
+                                    <img src="/Blur.png" alt="Water" className="w-14 h-14 flex-shrink-0" />
                                     <div>
                                         <h3 className="text-xl font-bold text-gray-900 mb-1">Water Sector</h3>
                                         <div className="text-4xl font-bold text-gray-900 mb-1">{data.waterScore}/100</div>
@@ -312,7 +312,7 @@ export default function CountyPage() {
                             {/* Waste */}
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                                 <div className="flex items-start gap-5">
-                                    <img src="/waste-icon.png" alt="Waste" className="w-14 h-14 flex-shrink-0" />
+                                    <img src="/Blur.png" alt="Waste" className="w-14 h-14 flex-shrink-0" />
                                     <div>
                                         <h3 className="text-xl font-bold text-gray-900 mb-1">Waste Management</h3>
                                         <div className="text-4xl font-bold text-gray-900 mb-1">{data.wasteScore}/100</div>

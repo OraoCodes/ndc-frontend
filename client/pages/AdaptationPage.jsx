@@ -19,7 +19,7 @@ export default function Adaptation() {
 
             <HeroBanner
                 title="Adaptation"
-                description="Evaluates measures to build resilience against climate impacts on water security and waste systems, including drought preparedness and flood-resistant infrastructure."
+                description="Evaluates preparedness for climate impacts, water stress, floods, droughts, and heatwaves. Focuses on vulnerable communities, infrastructure, and ecosystem resilience."
             />
 
             <section className="py-12 md:py-16 bg-slate-50">
