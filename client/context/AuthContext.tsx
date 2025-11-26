@@ -1,9 +1,17 @@
+// src/context/AuthContext.tsx
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { jwtDecode } from 'jwt-decode'; // Correct import for jwt-decode
-import { api, User } from '@/lib/api'; // Assuming User interface is exported from api.ts
-import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
+import { api, User } from '@/lib/api';
 
-interface AuthContextType {
+// Define only the standard JWT fields we need
+interface JWTPayload {
+  exp?: number;
+  iat?: number;
+  // add other standard fields if you use them (sub, aud, etc.)
+}
+
+// Do NOT intersect with User here — we’ll decode as any first, then assert safely
+const AuthContext = createContext<{
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;
@@ -11,72 +19,89 @@ interface AuthContextType {
   register: (formData: any) => Promise<void>;
   logout: () => void;
   loading: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+} | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      try {
-        const decodedUser = jwtDecode<User>(storedToken);
-        // You might want to add token expiration check here
-        setToken(storedToken);
-        setUser(decodedUser);
-        setIsAuthenticated(true);
-      } catch (error) {
-        console.error("Failed to decode token or token is invalid", error);
-        localStorage.removeItem('token');
-      }
+    if (!storedToken) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    try {
+      // Decode without strict typing first
+      const decoded = jwtDecode(storedToken) as any;
+
+      const now = Date.now() / 1000;
+
+      // Safe exp check
+      if (typeof decoded.exp === 'number' && decoded.exp < now) {
+        localStorage.removeItem('token');
+      } else {
+        setToken(storedToken);
+        // Only pick fields that actually exist in your User type
+        setUser(decoded as User);
+        setIsAuthenticated(true);
+      }
+    } catch (err) {
+      console.error('Invalid token', err);
+      localStorage.removeItem('token');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleLogin = async (email: string, password: string) => {
+  const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const response = await api.login({ email, password });
-      localStorage.setItem('token', response.token);
-      setToken(response.token);
-      setUser(response.user);
+      const { token: newToken, user: loggedInUser } = await api.login({ email, password });
+      localStorage.setItem('token', newToken);
+      setToken(newToken);
+      setUser(loggedInUser);
       setIsAuthenticated(true);
-      navigate('/dashboard'); // Redirect to dashboard after login
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRegister = async (formData: any) => {
+  const register = async (formData: any) => {
     setLoading(true);
     try {
-      const response = await api.register(formData);
-      localStorage.setItem('token', response.token);
-      setToken(response.token);
-      setUser(response.user);
+      const { token: newToken, user: newUser } = await api.register(formData);
+      localStorage.setItem('token', newToken);
+      setToken(newToken);
+      setUser(newUser);
       setIsAuthenticated(true);
-      navigate('/dashboard'); // Redirect after registration, perhaps to login page or dashboard
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
+  const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
-    navigate('/login'); // Redirect to login page after logout
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, token, login: handleLogin, register: handleRegister, logout: handleLogout, loading }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        user,
+        token,
+        login,
+        register,
+        logout,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -84,7 +109,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

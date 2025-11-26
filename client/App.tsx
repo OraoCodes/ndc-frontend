@@ -29,6 +29,8 @@ import CountyPage from "./pages/County";
 import { AuthProvider } from "./context/AuthContext";
 import PrivateRoute from "./components/PrivateRoute";
 import CountyScoringPage from "./pages/IndicatorPage";
+import CountyWaterPage from "./pages/Water-Management";
+import CountyWastePage from "./pages/Waste-Management";
 
 const queryClient = new QueryClient();
 
@@ -48,7 +50,9 @@ export const App = () => (
             <Route path="/Home" element={<HomePage />} />
             <Route path="/county/:countyName" element={<CountyPage />} />
             <Route path="/water-management" element={<WaterManagement />} />
+            <Route path="/water-management/:countyName" element={<CountyWaterPage />} />
             <Route path="/waste-management" element={<WasteManagement />} />
+            <Route path="/waste-management/:countyName" element={<CountyWastePage />} />
             <Route path="/governance" element={<Governance />} />
             <Route path="/mrv" element={<MRV />} />
             <Route path="/mitigation" element={<Mitigation />} />
@@ -58,6 +62,7 @@ export const App = () => (
             <Route path="/counties-list" element={<CountiesList />} />
             <Route path="/county-data" element={<CountyData />} />
             <Route path="/indicators" element={<CountyScoringPage />} />
+            <Route path="/publications" element={<Publications />} />
 
             {/* Protected Routes */}
             <Route element={<PrivateRoute />}>
@@ -65,7 +70,6 @@ export const App = () => (
               <Route path="/thematic-areas" element={<ThematicAreas />} />
               <Route path="/thematic-areas/add" element={<AddThematicArea />} />
 
-              <Route path="/publications" element={<Publications />} />
 
 
 

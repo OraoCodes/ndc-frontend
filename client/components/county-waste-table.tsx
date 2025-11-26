@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface CountyData {
     rank: number
     county: string
-    water?: number
+    // water?: number
     wasteMgt?: number
     avgScore: number
     performance: "Outstanding" | "Satisfactory" | "Good" | "Average" | "Poor"
@@ -61,7 +61,7 @@ const DetailedCardView = ({ data }: { data: CountyData[] }) => {
                         <DataItem label="Finance & Tech" value={row.finance} />
 
                         {/* Thematic Scores (if they exist) */}
-                        {row.water !== undefined && <DataItem label="Water Score" value={row.water} />}
+                        {/* {row.water !== undefined && <DataItem label="Water Score" value={row.water} />} */}
                         {row.wasteMgt !== undefined && <DataItem label="Waste Mgt Score" value={row.wasteMgt} />}
                     </div>
                 </div>
@@ -81,7 +81,7 @@ const DataItem = ({ label, value, isBold = false }: { label: string, value?: num
 );
 
 
-export function CountyRankingsTable({
+export function CountyWasteTable({
     title,
     data,
     showDetailedColumns = false,
@@ -186,4 +186,3 @@ export function CountyRankingsTable({
         </div>
     )
 }
-

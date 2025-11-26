@@ -1,14 +1,20 @@
-// In server.ts or a new file: routes/summary.ts
-import { Router } from "express"
-import type { Database } from "sqlite"
+import express from 'express'; // Import the default express value
+import type { Request, Response, Router } from 'express'; // Import types separately for type safety
+import type { Database } from "sqlite";
 
-export function createSummaryRoutes(db: Database) {
-    const router = Router()
+/**
+ * Creates API routes for fetching aggregated summary performance data.
+ * @param db The initialized SQLite database instance.
+ * @returns An Express Router instance.
+ */
+export function createSummaryRoutes(db: Database): Router {
+  const router = express.Router(); // Use express.Router()
 
-    // WATER SUMMARY
-    router.get("summary-performance/water", async (req, res) => {
-        try {
-            const rows = await db.all(`
+  // WATER SUMMARY - Fetches all counties' water scores for the specified year (hardcoded to 2025 in the SQL for now)
+  router.get("/summary-performance/water", async (req: Request, res: Response) => {
+    // Note: I added leading '/' to fix the route path
+    try {
+      const rows = await db.all(`
         SELECT 
           c.name,
           COALESCE(cp.sector_score, 0) as score
@@ -19,16 +25,18 @@ export function createSummaryRoutes(db: Database) {
           AND cp.sector = 'water'
         ORDER BY c.name
       `)
-            res.json(rows)
-        } catch (err) {
-            res.status(500).json({ error: "Database error" })
-        }
-    })
+      res.json(rows)
+    } catch (err) {
+      console.error("Database error fetching water summary:", err);
+      res.status(500).json({ error: "Database error" })
+    }
+  })
 
-    // WASTE SUMMARY
-    router.get("summary-performance/waste", async (req, res) => {
-        try {
-            const rows = await db.all(`
+  // WASTE SUMMARY - Fetches all counties' waste scores for the specified year (hardcoded to 2025 in the SQL for now)
+  router.get("/summary-performance/waste", async (req: Request, res: Response) => {
+    // Note: I added leading '/' to fix the route path
+    try {
+      const rows = await db.all(`
         SELECT 
           c.name,
           COALESCE(cp.sector_score, 0) as score
@@ -39,11 +47,12 @@ export function createSummaryRoutes(db: Database) {
           AND cp.sector = 'waste'
         ORDER BY c.name
       `)
-            res.json(rows)
-        } catch (err) {
-            res.status(500).json({ error: "Database error" })
-        }
-    })
+      res.json(rows)
+    } catch (err) {
+      console.error("Database error fetching waste summary:", err);
+      res.status(500).json({ error: "Database error" })
+    }
+  })
 
-    return router
+  return router
 }

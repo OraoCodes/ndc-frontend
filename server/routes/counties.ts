@@ -1,8 +1,9 @@
-import { Request, Response, Router } from 'express';
+import express from 'express'; // Import the default express value
+import type { Request, Response, Router } from 'express'; // Import types separately to avoid CJS/ESM conflict
 import { Database } from 'sqlite';
 
 export function createCountiesRoutes(db: Database): Router {
-  const router = Router();
+  const router = express.Router();
 
   // ==================================================================
   // 1. Dynamic Summary Performance (replaces hardcoded data)
@@ -103,15 +104,17 @@ export function createCountiesRoutes(db: Database): Router {
       res.json({
         county: county.name,
         year,
-        overallScore: Number(((water.overall_score || 0) + (waste.overall_score || 0)) / 2 || 0).toFixed(1),
+        // Calculate overall average of scores, ensuring no division by zero or NaN results
+        overallScore: Number(((water.overall_score || 0) + (waste.overall_score || 0)) / (water.overall_score && waste.overall_score ? 2 : 1) || 0).toFixed(1),
         waterScore: Number(water.sector_score || 0).toFixed(1),
         wasteScore: Number(waste.sector_score || 0).toFixed(1),
         indicators: {
-          governance: Number(((water.governance || 0) + (waste.governance || 0)) / 2 || 0).toFixed(1),
-          mrv: Number(((water.mrv || 0) + (waste.mrv || 0)) / 2 || 0).toFixed(1),
-          mitigation: Number(((water.mitigation || 0) + (waste.mitigation || 0)) / 2 || 0).toFixed(1),
-          adaptation: Number(((water.adaptation || 0) + (waste.adaptation || 0)) / 2 || 0).toFixed(1),
-          finance: Number(((water.finance || 0) + (waste.finance || 0)) / 2 || 0).toFixed(1),
+          // Average the thematic scores (Governance, MRV, etc.) across sectors
+          governance: Number(((water.governance || 0) + (waste.governance || 0)) / (water.governance && waste.governance ? 2 : 1) || 0).toFixed(1),
+          mrv: Number(((water.mrv || 0) + (waste.mrv || 0)) / (water.mrv && waste.mrv ? 2 : 1) || 0).toFixed(1),
+          mitigation: Number(((water.mitigation || 0) + (waste.mitigation || 0)) / (water.mitigation && waste.mitigation ? 2 : 1) || 0).toFixed(1),
+          adaptation: Number(((water.adaptation || 0) + (waste.adaptation || 0)) / (water.adaptation && waste.adaptation ? 2 : 1) || 0).toFixed(1),
+          finance: Number(((water.finance || 0) + (waste.finance || 0)) / (water.finance && waste.finance ? 2 : 1) || 0).toFixed(1),
         },
         waterIndicators: water.indicators_json ? JSON.parse(water.indicators_json) : [],
         wasteIndicators: waste.indicators_json ? JSON.parse(waste.indicators_json) : [],
@@ -253,5 +256,4 @@ export function createCountiesRoutes(db: Database): Router {
 
   return router;
 }
-
 

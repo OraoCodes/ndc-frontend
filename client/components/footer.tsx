@@ -2,14 +2,34 @@
 
 export function Footer() {
     return (
-        <footer className="bg-slate-900 text-slate-100 py-12">
+        <footer className="bg-[#0B1138] text-slate-100 pt-12">
             <div className="max-w-7xl mx-auto px-4 md:px-6">
+                <div>
+                    <h3 className="font-semibold mb-6 text-white">NDC tracking tool for water and waste management in Kenya</h3>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
                     {/* Brand */}
-                    <div>
-                        <h3 className="font-semibold mb-6 text-white">NDC tracking tool for water and waste management in Kenya</h3>
-                    </div>
 
+                    <div >
+                        <h4 className="font-semibold mb-6 text-white uppercase text-sm">ABOUT</h4>
+                        <ul className="space-y-3 text-sm">
+                            <li>
+                                <a href="#" className="hover:text-white transition-colors">
+                                    About the tool
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#" className="hover:text-white transition-colors">
+                                    Partners
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#" className="hover:text-white transition-colors">
+                                    FAQs
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                     {/* Thematic Areas */}
                     <div>
                         <h4 className="font-semibold mb-6 text-white uppercase text-sm">Thematic Areas</h4>
@@ -20,22 +40,22 @@ export function Footer() {
                                 </a>
                             </li>
                             <li>
-                                <a href="/water-management" className="hover:text-white transition-colors">
+                                <a href="/mrv" className="hover:text-white transition-colors">
                                     MRV
                                 </a>
                             </li>
                             <li>
-                                <a href="#" className="hover:text-white transition-colors">
+                                <a href="/mitigation" className="hover:text-white transition-colors">
                                     Mitigation
                                 </a>
                             </li>
                             <li>
-                                <a href="#" className="hover:text-white transition-colors">
+                                <a href="/adaptation" className="hover:text-white transition-colors">
                                     Adaptation
                                 </a>
                             </li>
                             <li>
-                                <a href="#" className="hover:text-white transition-colors">
+                                <a href="/finance-technology-transfer" className="hover:text-white transition-colors">
                                     Finance & Technology Transfer
                                 </a>
                             </li>
@@ -61,26 +81,11 @@ export function Footer() {
                 </div>
 
                 {/* Bottom */}
-                <div className="border-t border-slate-700 pt-8">
-                    <ul className="flex flex-col md:flex-row gap-6 text-sm mb-8">
-                        <li>
-                            <a href="#" className="hover:text-white transition-colors">
-                                About the tool
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#" className="hover:text-white transition-colors">
-                                Partners
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#" className="hover:text-white transition-colors">
-                                FAQs
-                            </a>
-                        </li>
-                    </ul>
-                    <p className="text-sm text-slate-400">Copyright © 2025. All Rights Reserved.</p>
-                </div>
+
+            </div>
+            <div className="bg-[#0A0D20] w-full  h-12 mx-auto px-4 md:px-6">
+                <p className="text-sm text-slate-400">Copyright © 2025. All Rights Reserved.</p>
+
             </div>
         </footer>
     )

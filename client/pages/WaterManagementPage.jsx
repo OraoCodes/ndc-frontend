@@ -4,7 +4,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { HeroBanner } from "@/components/hero-banner"
 import { KenyaMap } from "@/components/kenya-map"
-import { CountyRankingsTable } from "@/components/county-rankings-table"
+import { CountyWaterTable } from "@/components/county-water-table"
 import { RegionalAnalysisChart } from "@/components/regional-analysis-chart"
 
 const waterData = [
@@ -132,7 +132,7 @@ export default function WaterManagement() {
 
             <section className="py-12 md:py-16 bg-background">
                 <div className="max-w-7xl mx-auto px-4 md:px-6">
-                    <CountyRankingsTable title="Index Score per County" data={waterData} type="detailed" />
+                    <CountyWaterTable title="Index Score per County" data={waterData} type="detailed" />
                 </div>
             </section>
 

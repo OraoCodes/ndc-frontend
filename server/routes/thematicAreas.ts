@@ -1,9 +1,16 @@
-
-import { Request, Response, Router } from 'express';
+import express from 'express'; // Import the default express value
+import type { Request, Response, Router } from 'express'; // Import types separately to avoid CJS/ESM conflict
 import { Database } from 'sqlite';
 
+/**
+ * Creates API routes for managing thematic areas.
+ * @param db The initialized SQLite database instance.
+ * @returns An Express Router instance.
+ */
 export function createThematicAreasRoutes(db: Database): Router {
-  const router = Router();
+  // FIX: Use the recommended CommonJS import structure for Express 
+  // to avoid the "Named export not found" error.
+  const router = express.Router();
 
   // Get all thematic areas
   router.get('/', async (req: Request, res: Response) => {
@@ -11,6 +18,8 @@ export function createThematicAreasRoutes(db: Database): Router {
       const areas = await db.all('SELECT * FROM thematic_areas');
       res.json(areas);
     } catch (error) {
+      // It's better to log the error for debugging
+      console.error("Error fetching thematic areas:", error);
       res.status(500).json({ error: 'Failed to fetch thematic areas' });
     }
   });
@@ -25,6 +34,7 @@ export function createThematicAreasRoutes(db: Database): Router {
         res.status(404).json({ error: 'Thematic area not found' });
       }
     } catch (error) {
+      console.error("Error fetching thematic area:", error);
       res.status(500).json({ error: 'Failed to fetch thematic area' });
     }
   });
@@ -40,6 +50,7 @@ export function createThematicAreasRoutes(db: Database): Router {
       const result = await db.run('INSERT INTO thematic_areas (name, description) VALUES (?, ?)', [name, description]);
       res.status(201).json({ id: result.lastID, name, description });
     } catch (error) {
+      console.error("Error creating thematic area:", error);
       res.status(500).json({ error: 'Failed to create thematic area' });
     }
   });
@@ -59,6 +70,7 @@ export function createThematicAreasRoutes(db: Database): Router {
         res.status(404).json({ error: 'Thematic area not found' });
       }
     } catch (error) {
+      console.error("Error updating thematic area:", error);
       res.status(500).json({ error: 'Failed to update thematic area' });
     }
   });
@@ -73,6 +85,7 @@ export function createThematicAreasRoutes(db: Database): Router {
         res.status(404).json({ error: 'Thematic area not found' });
       }
     } catch (error) {
+      console.error("Error deleting thematic area:", error);
       res.status(500).json({ error: 'Failed to delete thematic area' });
     }
   });

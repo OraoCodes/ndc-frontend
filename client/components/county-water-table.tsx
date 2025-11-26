@@ -8,7 +8,7 @@ interface CountyData {
     rank: number
     county: string
     water?: number
-    wasteMgt?: number
+    // wasteMgt?: number
     avgScore: number
     performance: "Outstanding" | "Satisfactory" | "Good" | "Average" | "Poor"
     governance?: number
@@ -62,7 +62,7 @@ const DetailedCardView = ({ data }: { data: CountyData[] }) => {
 
                         {/* Thematic Scores (if they exist) */}
                         {row.water !== undefined && <DataItem label="Water Score" value={row.water} />}
-                        {row.wasteMgt !== undefined && <DataItem label="Waste Mgt Score" value={row.wasteMgt} />}
+                        {/* {row.wasteMgt !== undefined && <DataItem label="Waste Mgt Score" value={row.wasteMgt} />} */}
                     </div>
                 </div>
             ))}
@@ -81,7 +81,7 @@ const DataItem = ({ label, value, isBold = false }: { label: string, value?: num
 );
 
 
-export function CountyRankingsTable({
+export function CountyWaterTable({
     title,
     data,
     showDetailedColumns = false,
@@ -162,8 +162,8 @@ export function CountyRankingsTable({
                                             key={header.key}
                                             className={`px-4 py-3 text-${header.align} ${header.isBold ? 'font-bold' : ''} text-gray-800 whitespace-nowrap`}
                                         >
-                                            {header.key === 'county' ? (
-                                                <Link to={`/county/${row.county.toLowerCase().replace(/\s/g, '-')}`} className="underline text-blue-600 hover:text-blue-800">
+                                            {header.key === 'water-management' ? (
+                                                <Link to={`/water-management/${row.county.toLowerCase().replace(/\s/g, '-')}`} className="underline text-blue-600 hover:text-blue-800">
                                                     {row.county}
                                                 </Link>
                                             ) : header.key === 'performance' ? (
@@ -186,4 +186,3 @@ export function CountyRankingsTable({
         </div>
     )
 }
-

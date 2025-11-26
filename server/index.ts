@@ -2,13 +2,13 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "path";
-import { handleDemo } from "./routes/demo";
-import { setupDatabase } from "./db/setup";
-import { createThematicAreasRoutes } from "./routes/thematicAreas";
-import { createCountiesRoutes } from "./routes/counties";
-import { createIndicatorsRoutes } from "./routes/indicator";
-import { createSummaryRoutes } from "./routes/summary"
-import authRouter from "./routes/auth";
+// import { handleDemo } from "./routes/demo.js"; // Note: Assuming this was .js or .ts
+import { setupDatabase } from "./db/setup.ts"; // FIX 1: Corrected filename and added .js extension
+import { createThematicAreasRoutes } from "./routes/thematicAreas.ts"; // FIX 2: Added .js extension
+import { createCountiesRoutes } from "./routes/counties.ts"; // FIX 3: Added .js extension
+import { createIndicatorsRoutes } from "./routes/indicator.ts"; // FIX 4: Added .js extension
+import { createSummaryRoutes } from "./routes/summary.ts" // FIX 5: Added .js extension
+import authRouter from "./routes/auth.ts"; // FIX 6: Added .js extension
 
 /**
  * Create and return an Express app wired with routes and middleware.
@@ -16,6 +16,7 @@ import authRouter from "./routes/auth";
  * (for example, mounted into Vite's dev server) or started standalone.
  */
 export async function createServer() {
+  // Ensure the import path is fully specified for module resolution
   const db = await setupDatabase();
   const app = express();
 
@@ -29,7 +30,9 @@ export async function createServer() {
   app.use('/auth', authRouter); // New authentication routes
   app.use("/thematic-areas", createThematicAreasRoutes(db));
   app.use("/counties", createCountiesRoutes(db));
-  app.use("/publications", (await import("./routes/publications")).createPublicationsRoutes(db));
+  // The dynamic import already handles the extension well, but let's ensure consistency if possible.
+  // Assuming the publication route is defined in publications.js/ts and exported correctly.
+  app.use("/publications", (await import("./routes/publications.js")).createPublicationsRoutes(db));
   app.use("/indicators", createIndicatorsRoutes(db))
 
 
@@ -40,7 +43,7 @@ export async function createServer() {
     res.json({ message: ping });
   });
 
-  app.get("/demo", handleDemo);
+  // app.get("/demo", handleDemo);
 
   // In production the built SPA can be served from the `spa` folder.
   if (process.env.NODE_ENV === "production") {

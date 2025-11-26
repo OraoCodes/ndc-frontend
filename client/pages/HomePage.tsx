@@ -260,7 +260,8 @@ export default function Home() {
                         ) : errorPublications ? (
                             <div className="text-red-500">{errorPublications}</div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"> 
+                                {/* Updated grid: 1 column on mobile, 2 columns on small screens (sm), 3 on large screens (lg) */}
                                 {publications.slice(0, 3).map((publication) => ( // Display top 3 publications
                                     <div key={publication.id} className="bg-slate-900 text-white p-8 rounded-2xl text-center">
                                         <div className="w-20 h-20 mx-auto mb-6 bg-gray-700 rounded-xl border-2 border-dashed border-gray-600" />

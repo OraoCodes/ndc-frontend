@@ -12,6 +12,7 @@ export interface County {
 }
 
 export interface User {
+  exp: boolean;
   id: number;
   fullName: string;
   email: string;
@@ -51,17 +52,31 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   // Authentication
-  register: async (payload: any): Promise<AuthResponse> => request<AuthResponse>('/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }),
-  login: async (payload: any): Promise<AuthResponse> => request<AuthResponse>('/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }),
+  login: async ({ email, password }: { email: string; password: string }) => {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    })
 
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || "Login failed")
+
+    return data // → { token, user: { id, fullName, email, role } }
+  },
+
+  register: async (formData: any) => {
+    const res = await fetch("/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    })
+
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || "Registration failed")
+
+    return data
+  },
   // Thematic Areas
   listThematicAreas: async (): Promise<ThematicArea[]> => request<ThematicArea[]>('/thematic-areas'),
   getThematicArea: async (id: number): Promise<ThematicArea> => request<ThematicArea>(`/thematic-areas/${id}`),
