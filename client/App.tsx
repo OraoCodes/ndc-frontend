@@ -65,12 +65,12 @@ export const App = () => (
             <Route path="/indicators" element={<CountyScoringPage />} />
             <Route path="/publications" element={<Publications />} />
             <Route path="/about-the-tool" element={<AboutToolPage />} />
+            <Route path="/thematic-areas" element={<ThematicAreas />} />
+            <Route path="/thematic-areas/add" element={<AddThematicArea />} />
 
             {/* Protected Routes */}
             <Route element={<PrivateRoute />}>
               <Route path="/counties" element={<Counties />} />
-              <Route path="/thematic-areas" element={<ThematicAreas />} />
-              <Route path="/thematic-areas/add" element={<AddThematicArea />} />
 
 
 

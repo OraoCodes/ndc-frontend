@@ -12,10 +12,12 @@ import { api, ThematicArea, CountySummaryPerformance } from "@/lib/api" // Impor
 
 // Placeholder for publications data type, adjust as needed
 interface Publication {
+    image: string
     id: number;
     title: string;
     date: string;
     summary: string;
+
 }
 
 // 
@@ -231,7 +233,7 @@ export default function Home() {
                                 {thematicAreas.map((area) => (
                                     <Link
                                         key={area.id}
-                                        to={`/thematic-areas/${area.id}`} // Assuming a thematic area detail page exists
+                                        to={`/${area.name}`} // Assuming a thematic area detail page exists
                                         className="block group"
                                     >
                                         <div className="flex items-center justify-between px-8 py-6 bg-white border border-gray-200 rounded-2xl 
@@ -260,22 +262,44 @@ export default function Home() {
                         ) : errorPublications ? (
                             <div className="text-red-500">{errorPublications}</div>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"> 
-                                {/* Updated grid: 1 column on mobile, 2 columns on small screens (sm), 3 on large screens (lg) */}
-                                {publications.slice(0, 3).map((publication) => ( // Display top 3 publications
-                                    <div key={publication.id} className="bg-slate-900 text-white p-8 rounded-2xl text-center">
-                                        <div className="w-20 h-20 mx-auto mb-6 bg-gray-700 rounded-xl border-2 border-dashed border-gray-600" />
-                                        <p className="text-sm uppercase text-slate-400 mb-2">{publication.summary || "Document"}</p>
-                                        <h4 className="font-bold text-lg mb-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                                {publications.slice(0, 3).map((publication) => (
+                                    <div
+                                        key={publication.id}
+                                        className="bg-white rounded-xl shadow-md border border-gray-100 p-4 flex flex-col"
+                                    >
+                                        {/* Top Image */}
+                                        <img
+                                            src={publication.image || "/placeholder-report.png"}
+                                            alt={publication.title}
+                                            className="w-full h-40 object-cover rounded-lg mb-4"
+                                        />
+
+                                        {/* Title */}
+                                        <h3 className="text-gray-900 font-semibold text-base leading-snug mb-2">
                                             {publication.title}
-                                        </h4>
-                                        <p className="text-sm text-slate-400 mb-4">{new Date(publication.date).toLocaleDateString()}</p>
-                                        <Link to={`/publications/${publication.id}`} className="text-blue-400 hover:underline font-medium">
+                                        </h3>
+
+                                        {/* Date */}
+                                        <p className="text-gray-500 text-sm mb-4">
+                                            {new Date(publication.date).toLocaleDateString(undefined, {
+                                                month: "short",
+                                                day: "numeric",
+                                                year: "numeric",
+                                            })}
+                                        </p>
+
+                                        {/* CTA */}
+                                        <Link
+                                            to={`/publications/${publication.id}`}
+                                            className="mt-auto text-blue-600 font-medium text-sm flex items-center gap-1"
+                                        >
                                             Read Report →
                                         </Link>
                                     </div>
                                 ))}
                             </div>
+
                         )}
                     </div>
                 </div>

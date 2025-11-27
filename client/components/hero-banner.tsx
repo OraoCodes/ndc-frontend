@@ -10,7 +10,7 @@ export function HeroBanner({ title, description, backgroundImage }: HeroBannerPr
     return (
         <div className="relative h-64 md:h-80 bg-slate-900 text-white overflow-hidden">
             {/* Background pattern */}
-            <div className="absolute inset-0   z-10" />
+            {/* <div className="absolute inset-0   z-10" /> */}
             <div
                 className="absolute inset-0 h-100 opacity-90"
                 style={{
