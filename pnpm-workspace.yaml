@@ -1,0 +1,7 @@
+ignoredBuiltDependencies:
+  - sqlite3
+
+onlyBuiltDependencies:
+  - '@swc/core'
+  - bcrypt
+  - esbuild

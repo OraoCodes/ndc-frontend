@@ -1,6 +1,6 @@
 import express from 'express'; // Import the default express value
 import type { Request, Response, Router } from 'express'; // Import types separately to avoid CJS/ESM conflict
-import { Database } from 'sqlite';
+import type Database from 'better-sqlite3';
 
 export function createCountiesRoutes(db: Database): Router {
   const router = express.Router();
@@ -8,7 +8,7 @@ export function createCountiesRoutes(db: Database): Router {
   // ==================================================================
   // 1. Dynamic Summary Performance (replaces hardcoded data)
   // ==================================================================
-  router.get('/summary-performance/:sector', async (req: Request, res: Response) => {
+  router.get('/summary-performance/:sector', (req: Request, res: Response) => {
     const { sector } = req.params;
     const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
 
@@ -17,7 +17,7 @@ export function createCountiesRoutes(db: Database): Router {
     }
 
     try {
-      const rows = await db.all(`
+      const rows = db.prepare(`
         SELECT 
           c.name as county,
           cp.sector_score as indexScore,
@@ -65,21 +65,21 @@ export function createCountiesRoutes(db: Database): Router {
   // ==================================================================
   // 2. Get detailed county performance by name (for public county page)
   // ==================================================================
-  router.get('/:name/performance', async (req: Request, res: Response) => {
+  router.get('/:name/performance', (req: Request, res: Response) => {
     const { name } = req.params;
     const year = req.query.year ? Number(req.query.year) : new Date().getFullYear();
 
     try {
-      const county = await db.get(
-        'SELECT id, name FROM counties WHERE LOWER(name) = LOWER(?)',
-        [name]
-      );
+      const county = db.prepare(
+        'SELECT id, name FROM counties WHERE LOWER(name) = LOWER(?)').get
+        (name)
+      ;
 
       if (!county) {
         return res.status(404).json({ error: 'County not found' });
       }
 
-      const performance = await db.all(`
+      const performance = db.prepare(`
         SELECT 
           sector,
           overall_score,
@@ -92,7 +92,7 @@ export function createCountiesRoutes(db: Database): Router {
           indicators_json
         FROM county_performance 
         WHERE county_id = ? AND year = ?
-      `, [county.id, year]);
+      `).all(county.id, year);
 
       if (performance.length === 0) {
         return res.status(404).json({ error: 'No data available for this year' });
@@ -128,7 +128,7 @@ export function createCountiesRoutes(db: Database): Router {
   // ==================================================================
   // 3. Save / Update county performance (from admin dashboard)
   // ==================================================================
-  router.post('/:id/performance', async (req: Request, res: Response) => {
+  router.post('/:id/performance', (req: Request, res: Response) => {
     const countyId = Number(req.params.id);
     const {
       year,
@@ -148,7 +148,7 @@ export function createCountiesRoutes(db: Database): Router {
     }
 
     try {
-      await db.run(`
+      db.prepare(`
         INSERT INTO county_performance (
           county_id, year, sector,
           overall_score, sector_score,
@@ -165,7 +165,7 @@ export function createCountiesRoutes(db: Database): Router {
           finance = excluded.finance,
           indicators_json = excluded.indicators_json,
           updated_at = CURRENT_TIMESTAMP
-      `, [
+      `).run (
         countyId, year, sector,
         overall_score ?? null,
         sector_score ?? null,
@@ -175,7 +175,7 @@ export function createCountiesRoutes(db: Database): Router {
         adaptation ?? null,
         finance ?? null,
         JSON.stringify(indicators)
-      ]);
+      );
 
       res.json({ success: true, message: 'Performance data saved' });
     } catch (error) {
@@ -187,18 +187,18 @@ export function createCountiesRoutes(db: Database): Router {
   // ==================================================================
   // Existing CRUD routes (unchanged, just cleaned up)
   // ==================================================================
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', (req: Request, res: Response) => {
     try {
-      const counties = await db.all('SELECT * FROM counties ORDER BY name');
+      const counties = db.prepare('SELECT * FROM counties ORDER BY name').all();
       res.json(counties);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch counties' });
     }
   });
 
-  router.get('/:id', async (req: Request, res: Response) => {
+  router.get('/:id', (req: Request, res: Response) => {
     try {
-      const county = await db.get('SELECT * FROM counties WHERE id = ?', [req.params.id]);
+      const county = db.prepare('SELECT * FROM counties WHERE id = ?').get(req.params.id);
       if (county) res.json(county);
       else res.status(404).json({ error: 'County not found' });
     } catch (error) {
@@ -206,15 +206,15 @@ export function createCountiesRoutes(db: Database): Router {
     }
   });
 
-  router.post('/', async (req: Request, res: Response) => {
+  router.post('/', (req: Request, res: Response) => {
     const { name, population, thematic_area_id } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
     try {
-      const result = await db.run(
-        'INSERT INTO counties (name, population, thematic_area_id) VALUES (?, ?, ?)',
-        [name, population || null, thematic_area_id || null]
-      );
+      const result = db.prepare(
+        'INSERT INTO counties (name, population, thematic_area_id) VALUES (?, ?, ?)').run(
+        name, population || null, thematic_area_id || null)
+      ;
       res.status(201).json({ id: result.lastID, name, population, thematic_area_id });
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT') {
@@ -225,15 +225,15 @@ export function createCountiesRoutes(db: Database): Router {
     }
   });
 
-  router.put('/:id', async (req: Request, res: Response) => {
+  router.put('/:id', (req: Request, res: Response) => {
     const { name, population, thematic_area_id } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
     try {
-      const result = await db.run(
-        'UPDATE counties SET name = ?, population = ?, thematic_area_id = ? WHERE id = ?',
-        [name, population || null, thematic_area_id || null, req.params.id]
-      );
+      const result = db.prepare(
+        'UPDATE counties SET name = ?, population = ?, thematic_area_id = ? WHERE id = ?').run(
+        name, population || null, thematic_area_id || null, req.params.id)
+      ;
       if (result.changes > 0) {
         res.json({ id: req.params.id, name, population, thematic_area_id });
       } else {
@@ -244,9 +244,9 @@ export function createCountiesRoutes(db: Database): Router {
     }
   });
 
-  router.delete('/:id', async (req: Request, res: Response) => {
+  router.delete('/:id', (req: Request, res: Response) => {
     try {
-      const result = await db.run('DELETE FROM counties WHERE id = ?', [req.params.id]);
+      const result = db.prepare('DELETE FROM counties WHERE id = ?').run(req.params.id);
       if (result.changes > 0) res.status(204).send();
       else res.status(404).json({ error: 'County not found' });
     } catch (error) {

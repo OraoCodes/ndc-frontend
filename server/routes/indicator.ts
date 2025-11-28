@@ -1,14 +1,14 @@
 // routes/indicators.ts
-import { Router } from "express"
-import type { Database } from "sqlite"
+import { Router } from "express";
+import type Database from 'better-sqlite3';
 
 export function createIndicatorsRoutes(db: Database) {
     const router = Router()
 
     // GET all indicators
-    router.get("/", async (req, res) => {
+    router.get("/", (req, res) => {
         try {
-            const indicators = await db.all(`
+            const indicators = db.prepare(`
         SELECT 
           id,
           sector,
@@ -17,7 +17,7 @@ export function createIndicatorsRoutes(db: Database) {
           weight
         FROM indicators 
         ORDER BY sector, thematic_area, id
-      `)
+      `).all()
             res.json(indicators)
         } catch (err) {
             console.error(err)
@@ -26,7 +26,7 @@ export function createIndicatorsRoutes(db: Database) {
     })
 
     // CREATE new indicator
-    router.post("/", async (req, res) => {
+    router.post("/", (req, res) => {
         const { sector, thematic_area, indicator_text, weight = 10 } = req.body
 
         if (!sector || !thematic_area || !indicator_text) {
@@ -34,11 +34,11 @@ export function createIndicatorsRoutes(db: Database) {
         }
 
         try {
-            const result = await db.run(
+            const result = db.prepare(
                 `INSERT INTO indicators (sector, thematic_area, indicator_text, weight) 
-         VALUES (?, ?, ?, ?)`,
-                [sector.toLowerCase(), thematic_area, indicator_text, weight]
-            )
+         VALUES (?, ?, ?, ?)`).run
+                (sector.toLowerCase(), thematic_area, indicator_text, weight)
+            
             res.status(201).json({ id: result.lastID, message: "Indicator added" })
         } catch (err: any) {
             if (err.message.includes("UNIQUE constraint")) {
@@ -49,17 +49,17 @@ export function createIndicatorsRoutes(db: Database) {
     })
 
     // UPDATE indicator
-    router.put("/:id", async (req, res) => {
+    router.put("/:id", (req, res) => {
         const { id } = req.params
         const { thematic_area, indicator_text, weight } = req.body
 
         try {
-            await db.run(
+            db.prepare(
                 `UPDATE indicators 
          SET thematic_area = ?, indicator_text = ?, weight = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-                [thematic_area, indicator_text, weight, id]
-            )
+         WHERE id = ?`).run
+                (thematic_area, indicator_text, weight, id)
+            
             res.json({ message: "Indicator updated" })
         } catch (err) {
             res.status(500).json({ error: "Failed to update" })
@@ -67,10 +67,10 @@ export function createIndicatorsRoutes(db: Database) {
     })
 
     // DELETE indicator
-    router.delete("/:id", async (req, res) => {
+    router.delete("/:id", (req, res) => {
         const { id } = req.params
         try {
-            await db.run(`DELETE FROM indicators WHERE id = ?`, [id])
+            db.prepare(`DELETE FROM indicators WHERE id = ?`).run(id)
             res.json({ message: "Indicator deleted" })
         } catch (err) {
             res.status(500).json({ error: "Failed to delete" })

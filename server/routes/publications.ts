@@ -1,13 +1,13 @@
 import { Request, Response, Router } from 'express';
-import { Database } from 'sqlite';
+import { Database } from 'better-sqlite3';
 
 export function createPublicationsRoutes(db: Database): Router {
   const router = Router();
 
   // List publications (metadata only)
-  router.get('/', async (_req: Request, res: Response) => {
+  router.get('/', (_req: Request, res: Response) => {
     try {
-      const rows = await db.all('SELECT id, title, date, summary, filename FROM publications ORDER BY date DESC');
+      const rows = db.prepare('SELECT id, title, date, summary, filename FROM publications ORDER BY date DESC');
       res.json(rows);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch publications' });
@@ -15,9 +15,9 @@ export function createPublicationsRoutes(db: Database): Router {
   });
 
   // Get publication metadata
-  router.get('/:id', async (req: Request, res: Response) => {
+  router.get('/:id', (req: Request, res: Response) => {
     try {
-      const pub = await db.get('SELECT id, title, date, summary, filename FROM publications WHERE id = ?', [req.params.id]);
+      const pub = db.prepare('SELECT id, title, date, summary, filename FROM publications WHERE id = ?').all(req.params.id);
       if (pub) res.json(pub);
       else res.status(404).json({ error: 'Publication not found' });
     } catch (error) {
@@ -26,9 +26,9 @@ export function createPublicationsRoutes(db: Database): Router {
   });
 
   // Download the file
-  router.get('/:id/download', async (req: Request, res: Response) => {
+  router.get('/:id/download', (req: Request, res: Response) => {
     try {
-      const row: any = await db.get('SELECT filename, file_blob FROM publications WHERE id = ?', [req.params.id]);
+      const row: any = db.prepare('SELECT filename, file_blob FROM publications WHERE id = ?').all(req.params.id);
       if (!row) return res.status(404).json({ error: 'Publication not found' });
 
       const { filename, file_blob } = row;
@@ -49,7 +49,7 @@ export function createPublicationsRoutes(db: Database): Router {
   });
 
   // Create a publication with file uploaded as base64 in JSON
-  router.post('/', async (req: Request, res: Response) => {
+  router.post('/', (req: Request, res: Response) => {
     try {
       const { title, date, summary, filename, contentBase64 } = req.body;
       if (!title || !filename || !contentBase64) {
@@ -57,10 +57,9 @@ export function createPublicationsRoutes(db: Database): Router {
       }
 
       const buffer = Buffer.from(contentBase64, 'base64');
-      const result = await db.run(
-        'INSERT INTO publications (title, date, summary, filename, file_blob) VALUES (?, ?, ?, ?, ?)',
-        [title, date ?? null, summary ?? null, filename, buffer]
-      );
+      const result = db.prepare(
+        'INSERT INTO publications (title, date, summary, filename, file_blob) VALUES (?, ?, ?, ?, ?)').all(
+        title, date ?? null, summary ?? null, filename, buffer)
 
       res.status(201).json({ id: result.lastID, title, date, summary, filename });
     } catch (error) {
@@ -69,9 +68,9 @@ export function createPublicationsRoutes(db: Database): Router {
   });
 
   // Delete publication
-  router.delete('/:id', async (req: Request, res: Response) => {
+  router.delete('/:id', (req: Request, res: Response) => {
     try {
-      const result = await db.run('DELETE FROM publications WHERE id = ?', [req.params.id]);
+      const result = db.prepare('DELETE FROM publications WHERE id = ?').all(req.params.id);
       if (result.changes > 0) res.status(204).send();
       else res.status(404).json({ error: 'Publication not found' });
     } catch (error) {

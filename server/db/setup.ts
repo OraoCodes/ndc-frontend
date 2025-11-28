@@ -1,4 +1,4 @@
-import sqlite3 from 'sqlite3';
+import Database from 'better-sqlite3';
 import { open } from 'sqlite';
 
 /**
@@ -6,18 +6,15 @@ import { open } from 'sqlite';
  * This includes creating tables for thematic areas, counties, publications, users, 
  * county performance records, and specific indicators, followed by inserting 
  * initial indicator data.
- * @returns {Promise<import('sqlite').Database>} The initialized database instance.
+ * @returns {Database} The initialized database instance.
  */
 export async function setupDatabase() {
-  const db = await open({
-    filename: './ndc.db',
-    driver: sqlite3.Database
-  });
+  const db = new Database("./ndc.db");
 
   // Enable foreign key constraints
-  await db.exec('PRAGMA foreign_keys = ON;');
+  db.exec('PRAGMA foreign_keys = ON;');
 
-  await db.exec(`
+  db.exec(`
     -- Table for broad thematic areas (e.g., Water, Waste)
     CREATE TABLE IF NOT EXISTS thematic_areas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -14,9 +14,9 @@ const thematicAreasItems = [
 ]
 
 const countiesItems = [
-    { name: 'Nairobi', path: '/counties/nairobi' },
-    { name: 'Mombasa', path: '/counties/mombasa' },
-    { name: 'Kisumu', path: '/counties/kisumu' },
+    { name: 'Nairobi', path: '/county/nairobi' },
+    { name: 'Mombasa', path: '/county/mombasa' },
+    { name: 'Kisumu', path: '/county/kisumu' },
     // Add all 47 counties...
 ]
 
@@ -51,12 +51,18 @@ export function Header({ currentPage }: { currentPage?: string }) {
                     </div>
 
                     {/* Desktop Navigation */}
-                    <nav className="hidden lg:flex items-center gap-8 text-sm font-medium">
+                    <nav className="hidden lg:flex items-center gap-6 text-sm font-medium relative z-50">
                         <Link to="/" className={`hover:text-blue-600 ${currentPage === "home" ? "text-blue-600 font-bold" : "text-gray-700"}`}>
                             HOME
                         </Link>
                         <Dropdown title="THEMATIC AREAS" items={thematicAreasItems} currentPage={currentPage} />
                         <Dropdown title="COUNTIES" items={countiesItems} currentPage={currentPage} />
+                        <Link to="/water-management" className={`hover:text-blue-600 ${currentPage === "water" ? "text-blue-600 font-bold" : "text-gray-700"}`}>
+                            WATER MANAGEMENT
+                        </Link>
+                        <Link to="/waste-management" className={`hover:text-blue-600 ${currentPage === "waste" ? "text-blue-600 font-bold" : "text-gray-700"}`}>
+                            WASTE MANAGEMENT
+                        </Link>
                         <Link to="/about-the-tool" className={`hover:text-blue-600 ${currentPage === "about" ? "text-blue-600 font-bold" : "text-gray-700"}`}>
                             ABOUT THE TOOL
                         </Link>
@@ -101,6 +107,12 @@ export function Header({ currentPage }: { currentPage?: string }) {
                                 <MobileDropdown title="Thematic Areas" items={thematicAreasItems} onClose={() => setMobileMenuOpen(false)} />
                                 <MobileDropdown title="Counties" items={countiesItems} onClose={() => setMobileMenuOpen(false)} />
 
+                                <Link to="/water-management" onClick={() => setMobileMenuOpen(false)} className="block text-gray-900 hover:text-blue-600">
+                                    Water Management
+                                </Link>
+                                <Link to="/waste-management" onClick={() => setMobileMenuOpen(false)} className="block text-gray-900 hover:text-blue-600">
+                                    Waste Management
+                                </Link>
                                 <Link to="/about-the-tool" onClick={() => setMobileMenuOpen(false)} className="block text-gray-900 hover:text-blue-600">
                                     About the Tool
                                 </Link>
@@ -114,35 +126,69 @@ export function Header({ currentPage }: { currentPage?: string }) {
 }
 
 // Reusable Desktop Dropdown
-function Dropdown({ title, items, currentPage }: { title: string; items: { name: string; path: string }[]; currentPage?: string }) {
-    const [open, setOpen] = useState(false)
-    const isActive = items.some(i => currentPage?.startsWith(i.path.split('/')[1]))
+// Reusable Desktop Dropdown (Updated)
+function Dropdown({
+    title,
+    items,
+    currentPage,
+}: {
+    title: string;
+    items: { name: string; path: string }[];
+    currentPage?: string;
+}) {
+    const isActive = items.some(i =>
+        currentPage?.startsWith(i.path.split('/')[1])
+    );
 
     return (
-        <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-            <button className={`flex items-center gap-1 hover:text-blue-600 ${isActive ? "text-blue-600 font-bold" : "text-gray-700"}`}>
+        <div className="relative group">
+            {/* Trigger */}
+            <button
+                className={`flex items-center gap-1 hover:text-blue-600 ${isActive ? "text-blue-600 font-bold" : "text-gray-700"
+                    }`}
+            >
                 {title}
-                <svg className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                <svg
+                    className="w-3 h-3 transition-transform group-hover:rotate-180"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={3}
+                        d="M19 9l-7 7-7-7"
+                    />
                 </svg>
             </button>
 
-            {open && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
-                    {items.map(item => (
-                        <Link
-                            key={item.path}
-                            to={item.path}
-                            className="block px-5 py-3 text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                        >
-                            {item.name}
-                        </Link>
-                    ))}
-                </div>
-            )}
+            {/* Dropdown */}
+            <div
+                className="
+                    absolute left-1/2 top-full -translate-x-1/2 
+                    mt-3 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-2 
+                    opacity-0 invisible group-hover:opacity-100 group-hover:visible 
+                    transition-all duration-200 z-[9999]
+                "
+            >
+                {items.map(item => (
+                    <Link
+                        key={item.path}
+                        to={item.path}
+                        className="
+                            block px-5 py-3 text-sm 
+                            hover:bg-blue-50 hover:text-blue-600 transition-colors
+                        "
+                    >
+                        {item.name}
+                    </Link>
+                ))}
+            </div>
         </div>
-    )
+    );
 }
+
 
 // Mobile Dropdown (Accordion Style)
 function MobileDropdown({ title, items, onClose }: { title: string; items: { name: string; path: string }[]; onClose: () => void }) {

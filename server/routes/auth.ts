@@ -2,19 +2,13 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { open } from 'sqlite';
-import sqlite3 from 'sqlite3';
+import Database from 'better-sqlite3';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey'; // Replace with a strong, environment-variable-based key
 
 // Utility function to get database instance
-async function getDb() {
-    return open({
-        filename: './ndc.db',
-        driver: sqlite3.Database,
-    });
-}
+const db = new Database('./ndc.db');
 
 // Register Route
 router.post('/register', async (req, res) => {
@@ -25,10 +19,10 @@ router.post('/register', async (req, res) => {
     }
 
     try {
-        const db = await getDb();
+        
 
         // Check if user already exists
-        const existingUser = await db.get('SELECT * FROM users WHERE email = ?', email);
+        const existingUser = db.prepare('SELECT * FROM users WHERE email = ?', email);
         if (existingUser) {
             return res.status(409).json({ message: 'User with that email already exists' });
         }
@@ -37,8 +31,8 @@ router.post('/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10); // Salt rounds
 
         // Insert user into database
-        const result = await db.run(
-            'INSERT INTO users (fullName, email, organisation, phoneNumber, position, password) VALUES (?, ?, ?, ?, ?, ?)',
+        const result = db.prepare(
+            'INSERT INTO users (fullName, email, organisation, phoneNumber, position, password) VALUES (?, ?, ?, ?, ?, ?)',).run(
             fullName,
             email,
             organisation,
@@ -69,10 +63,10 @@ router.post('/login', async (req, res) => {
     }
 
     try {
-        const db = await getDb();
+        
 
         // Check if user exists
-        const user = await db.get('SELECT * FROM users WHERE email = ?', email);
+        const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
         if (!user) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }

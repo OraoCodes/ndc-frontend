@@ -2,15 +2,13 @@
 import { defineConfig, Plugin } from "vite"
 import react from "@vitejs/plugin-react-swc"
 import path from "path"
-import type { Request, Response, NextFunction } from "express"
-import { createServer } from "./server"
 
 let app: any = null
 
 function expressPlugin(): Plugin {
   return {
     name: "express-dev-server",
-    async configureServer(server) {
+    configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         try {
           if (!app) {
@@ -18,7 +16,7 @@ function expressPlugin(): Plugin {
             app = await createServer()
             console.log("Express server ready")
           }
-          app(req as Request, res as Response, next as NextFunction)
+          app(req, res, next)
         } catch (err) {
           console.error("Express server error:", err)
           next(err)

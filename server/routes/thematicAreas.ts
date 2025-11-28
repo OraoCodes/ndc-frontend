@@ -1,6 +1,6 @@
 import express from 'express'; // Import the default express value
 import type { Request, Response, Router } from 'express'; // Import types separately to avoid CJS/ESM conflict
-import { Database } from 'sqlite';
+import { Database } from 'better-sqlite3';
 
 /**
  * Creates API routes for managing thematic areas.
@@ -13,9 +13,9 @@ export function createThematicAreasRoutes(db: Database): Router {
   const router = express.Router();
 
   // Get all thematic areas
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', (req: Request, res: Response) => {
     try {
-      const areas = await db.all('SELECT * FROM thematic_areas');
+      const areas = db.prepare('SELECT * FROM thematic_areas').all();
       res.json(areas);
     } catch (error) {
       // It's better to log the error for debugging
@@ -25,9 +25,9 @@ export function createThematicAreasRoutes(db: Database): Router {
   });
 
   // Get a single thematic area by id
-  router.get('/:id', async (req: Request, res: Response) => {
+  router.get('/:id', (req: Request, res: Response) => {
     try {
-      const area = await db.get('SELECT * FROM thematic_areas WHERE id = ?', [req.params.id]);
+      const area = db.prepare('SELECT * FROM thematic_areas WHERE id = ?').all(req.params.id);
       if (area) {
         res.json(area);
       } else {
@@ -40,14 +40,14 @@ export function createThematicAreasRoutes(db: Database): Router {
   });
 
   // Create a new thematic area
-  router.post('/', async (req: Request, res: Response) => {
+  router.post('/', (req: Request, res: Response) => {
     const { name, description } = req.body;
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
     }
 
     try {
-      const result = await db.run('INSERT INTO thematic_areas (name, description) VALUES (?, ?)', [name, description]);
+      const result = db.prepare('INSERT INTO thematic_areas (name, description) VALUES (?, ?)').all(name, description);
       res.status(201).json({ id: result.lastID, name, description });
     } catch (error) {
       console.error("Error creating thematic area:", error);
@@ -56,14 +56,14 @@ export function createThematicAreasRoutes(db: Database): Router {
   });
 
   // Update a thematic area
-  router.put('/:id', async (req: Request, res: Response) => {
+  router.put('/:id', (req: Request, res: Response) => {
     const { name, description } = req.body;
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
     }
 
     try {
-      const result = await db.run('UPDATE thematic_areas SET name = ?, description = ? WHERE id = ?', [name, description, req.params.id]);
+      const result = db.prepare('UPDATE thematic_areas SET name = ?, description = ? WHERE id = ?').all(name, description, req.params.id);
       if (result.changes > 0) {
         res.json({ id: req.params.id, name, description });
       } else {
@@ -76,9 +76,9 @@ export function createThematicAreasRoutes(db: Database): Router {
   });
 
   // Delete a thematic area
-  router.delete('/:id', async (req: Request, res: Response) => {
+  router.delete('/:id', (req: Request, res: Response) => {
     try {
-      const result = await db.run('DELETE FROM thematic_areas WHERE id = ?', [req.params.id]);
+      const result = db.prepare('DELETE FROM thematic_areas WHERE id = ?').all(req.params.id);
       if (result.changes > 0) {
         res.status(204).send();
       } else {
