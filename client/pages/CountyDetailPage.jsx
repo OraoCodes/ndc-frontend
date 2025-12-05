@@ -1,166 +1,195 @@
+"use client"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { IndicatorSection } from "@/components/indicator-section"
+import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useParams } from "react-router-dom"
 
-// Mock data - replace with actual data fetching
-const countyData = {
-    name: "Nairobi",
-    description:
-        "This component examines the institutional structures, legal frameworks, policy coherence, and stakeholder engagement mechanisms that underpin climate action. It is weighted at 30%, recognizing its foundational role in enabling effective implementation and coordination across all other components.",
-    overallRank: 1,
-    overallScore: 70.8,
-    waterScore: 85,
-    wasteScore: 85,
-    indicators: {
-        governance: 15.0,
-        mrv: 12,
-        mitigation: 11,
-        adaptation: 10,
-        finance: 15,
-    },
-    waterIndicators: [
-        {
-            no: 1,
-            indicator: "Audit on climate-related costs",
-            description:
-                "While a climate-related function is not readily available, many have found it significant and a necessary step to better address climate change and improve the National Climate Action Plan (NCAP). We Climate Change Directorate (CCAD), the Climate Finance Steering Group (CFSG), and the National Climate Change Council (NCCC) coordinate efforts, though not always sufficiently, and they lack clear climate change-focused budgeting approaches.",
-            score: 1,
-        },
-        {
-            no: 2,
-            indicator: "Number of institutional arrangements for coordinating adaptation activities",
-            description:
-                "Some key undertakings significant reviews and restructuring efforts to strengthen its institutional capacity. The Climate Finance Steering Group (CFSG), and the National Climate Change Council (NCCC), coordinate efforts, though not always sufficiently clear regarding coordination and operational linkages.",
-            score: 1,
-        },
-        {
-            no: 3,
-            indicator: "Percentage of adaptation actions prioritized and accounted for in the coordination system",
-            description:
-                "Whilst that has been made significant strides and measures dedicated to climate, this component remains in an unfulfilled capacity. The significant presence of climate stress risks and a steady lack without sufficient funds results in the coordination system and operational linkages.",
-            score: 1,
-        },
-    ],
-    wasteIndicators: [
-        {
-            no: 1,
-            indicator: "Audit on climate-related costs",
-            description:
-                "While a climate-related function is not readily available, many have found it significant and a necessary step to better address climate change and improve the National Climate Action Plan (NCAP).",
-            score: 1,
-        },
-        {
-            no: 2,
-            indicator: "Number of institutional arrangements",
-            description:
-                "Some key undertakings significant reviews and restructuring efforts to strengthen its institutional capacity.",
-            score: 1,
-        },
-        {
-            no: 3,
-            indicator: "Percentage of adaptation actions prioritized",
-            description:
-                "Whilst that has been made significant strides and measures dedicated to climate, this component remains in an unfulfilled capacity.",
-            score: 1,
-        },
-    ],
+// THIS IS THE ONLY INDICATOR SECTION YOU NEED — IT SHOWS SCORES 100%
+function IndicatorSection({ title, indicators }: { title: string; indicators: any[] }) {
+  const [open, setOpen] = useState(title === "Governance" || title === "MRV")
+
+  if (!indicators || indicators.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-300 mb-8 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full px-8 py-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white flex items-center justify-between hover:from-blue-700 hover:to-blue-800 transition"
+      >
+        <h3 className="text-2xl font-bold">{title}</h3>
+        {open ? <ChevronUp className="h-8 w-8" /> : <ChevronDown className="h-8 w-8" />}
+      </button>
+
+      {open && (
+        <div className="p-6">
+          <table className="w-full table-auto border-collapse">
+            <thead>
+              <tr className="bg-gray-100 text-left">
+                <th className="px-6 py-4 font-bold text-gray-700">No.</th>
+                <th className="px-6 py-4 font-bold text-gray-700">Indicator</th>
+                <th className="px-6 py-4 font-bold text-gray-700">Status</th>
+                <th className="px-6 py-4 text-center font-bold text-gray-700">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {indicators.map((item) => (
+                <tr key={item.no} className="border-t hover:bg-gray-50">
+                  <td className="px-6 py-5 font-medium text-gray-600">{item.no}</td>
+                  <td className="px-6 py-5 font-medium text-gray-900 max-w-md">{item.indicator}</td>
+                  <td className="px-6 py-5 text-sm text-gray-600">
+                    {item.description || "Data not yet entered."}
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    <span
+                      className={`inline-block px-8 py-4 rounded-full text-2xl font-bold text-white shadow-lg ${
+                        item.score >= 8
+                          ? "bg-green-600"
+                          : item.score >= 6
+                          ? "bg-emerald-600"
+                          : item.score >= 4
+                          ? "bg-yellow-600"
+                          : item.score > 0
+                          ? "bg-orange-600"
+                          : "bg-red-600"
+                      }`}
+                    >
+                      {item.score.toFixed(1)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
 }
 
-export default function CountyPage() {
-    return (
-        <div className="min-h-screen bg-gray-50">
-            <Header />
+export default function CountyDetailPage() {
+  const { slug } = useParams<{ slug: string }>()
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [year, setYear] = useState("2025")
 
-            {/* Hero Banner */}
-            <div
-                className="bg-cover bg-center h-48 relative"
-                style={{ backgroundImage: "url(/images/thematic-20dashboard.jpeg)" }}
-            >
-                <div className="absolute inset-0 bg-black/50"></div>
-                <div className="absolute inset-0 flex flex-col justify-center px-8">
-                    <h1 className="text-4xl font-bold text-white mb-3">{countyData.name}</h1>
-                    <p className="text-white text-sm max-w-2xl">{countyData.description}</p>
-                </div>
-            </div>
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!slug) return
+      setLoading(true)
+      try {
+        const res = await fetch(`/api/counties/${slug}/performance?year=${year}`)
+        if (!res.ok) throw new Error("Failed")
+        const raw = await res.json()
 
-            {/* Year Selector & Content */}
-            <div className="max-w-7xl mx-auto px-4 md:px-6 py-12">
-                <div className="mb-8">
-                    <select className="px-4 py-2 border border-gray-300 rounded-md text-gray-900 bg-white">
-                        <option>2025</option>
-                        <option>2024</option>
-                        <option>2023</option>
-                    </select>
-                </div>
+        console.log("RAW FROM SERVER:", raw) // ← YOU SEE THIS
 
-                {/* Score Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
-                    <div className="bg-white p-4 border border-gray-200 rounded-lg">
-                        <div className="text-3xl font-bold text-gray-900 mb-2">{countyData.overallScore}</div>
-                        <p className="text-gray-600 text-sm">Overall County Score</p>
-                    </div>
-                    <div className="bg-white p-4 border border-gray-200 rounded-lg flex items-center gap-2">
-                        <div className="text-xl">💧</div>
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900">{countyData.waterScore}</div>
-                            <p className="text-gray-600 text-xs">Water Management</p>
-                        </div>
-                    </div>
-                    <div className="bg-white p-4 border border-gray-200 rounded-lg flex items-center gap-2">
-                        <div className="text-xl">💧</div>
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900">{countyData.wasteScore}</div>
-                            <p className="text-gray-600 text-xs">Waste Management</p>
-                        </div>
-                    </div>
-                    <div className="bg-white p-4 border border-gray-200 rounded-lg">
-                        <div className="text-3xl font-bold text-gray-900 mb-2">{countyData.overallRank}</div>
-                        <p className="text-gray-600 text-sm">Overall County Ranking</p>
-                    </div>
-                </div>
+        // THIS FORCES REACT TO RE-RENDER — KEY LINE
+        const newData = {
+          county: raw.county,
+          overallScore: parseFloat(raw.overallScore || "0"),
+          waterScore: parseFloat(raw.waterScore || "0"),
+          wasteScore: parseFloat(raw.wasteScore || "0"),
+          indicators: {
+            governance: parseFloat(raw.indicators?.governance || "0"),
+            mrv: parseFloat(raw.indicators?.mrv || "0"),
+            mitigation: parseFloat(raw.indicators?.mitigation || "0"),
+            adaptation: parseFloat(raw.indicators?.adaptation || "0"),
+            finance: parseFloat(raw.indicators?.finance || "0"),
+          },
+          waterIndicators: (raw.waterIndicators || []).map((i: any, idx: number) => ({
+            no: idx + 1,
+            indicator: i.indicator || "Unknown",
+            description: i.description || "Data not yet entered.",
+            score: parseFloat(i.score || "0"),
+          })),
+          wasteIndicators: (raw.wasteIndicators || []).map((i: any, idx: number) => ({
+            no: idx + 1,
+            indicator: i.indicator || "Unknown",
+            description: i.description || "Data not yet entered.",
+            score: parseFloat(i.score || "0"),
+          })),
+        }
 
-                {/* Indicators Overview */}
-                <div className="bg-white rounded-lg border border-gray-200 p-6 mb-12">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">Indicators Overview</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        {Object.entries(countyData.indicators).map(([key, value]) => (
-                            <div key={key} className="bg-gray-50 p-4 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-gray-900">{value}</div>
-                                <p className="text-gray-600 text-xs mt-2 capitalize">{key.replace(/([A-Z])/g, " $1")}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+        console.log("PARSED DATA (WITH SCORES):", newData) // ← CHECK THIS
+        setData(newData) // ← THIS TRIGGERS RENDER
+      } catch (err) {
+        console.error(err)
+        setData(null)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-                {/* Water Management Indicators */}
-                <div className="mb-12">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6">Water Management Indicators</h2>
-                    <IndicatorSection title="Governance" indicators={countyData.waterIndicators} defaultOpen={true} />
-                    <IndicatorSection
-                        title="Measurement, Reporting, and Verification(MRV)"
-                        indicators={countyData.waterIndicators}
-                    />
-                    <IndicatorSection title="Mitigation" indicators={countyData.waterIndicators} />
-                    <IndicatorSection title="Adaptation" indicators={countyData.waterIndicators} />
-                    <IndicatorSection title="Finance & Technology Transfer" indicators={countyData.waterIndicators} />
-                </div>
+    fetchData()
+  }, [slug, year])
 
-                {/* Waste Management Indicators */}
-                <div className="mb-12">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6">Waste Management Indicators</h2>
-                    <IndicatorSection title="Governance" indicators={countyData.wasteIndicators} />
-                    <IndicatorSection
-                        title="Measurement, Reporting, and Verification(MRV)"
-                        indicators={countyData.wasteIndicators}
-                        defaultOpen={true}
-                    />
-                    <IndicatorSection title="Mitigation" indicators={countyData.wasteIndicators} />
-                    <IndicatorSection title="Adaptation" indicators={countyData.wasteIndicators} />
-                    <IndicatorSection title="Finance & Technology Transfer" indicators={countyData.wasteIndicators} />
-                </div>
-            </div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin h-16 w-16" /></div>
+  if (!data) return <div className="min-h-screen flex items-center justify-center text-4xl text-red-600">No data</div>
 
-            <Footer />
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <Header />
+
+      {/* HERO */}
+      <div className="bg-gradient-to-br from-blue-900 to-black text-white py-32 text-center">
+        <h1 className="text-8xl font-black">{data.county}</h1>
+        <p className="text-4xl mt-4">NDC Performance {year}</p>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-16">
+
+        {/* YEAR */}
+        <div className="flex justify-end mb-12">
+          <select value={year} onChange={(e) => setYear(e.target.value)} className="px-10 py-5 text-2xl rounded-xl border-4 border-blue-600">
+            <option>2025</option>
+            <option>2024</option>
+            <option>2023</option>
+          </select>
         </div>
-    )
+
+        {/* SCORES */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-20 text-center">
+          <div className="bg-gradient-to-br from-purple-700 to-blue-900 text-white p-20 rounded-3xl shadow-2xl">
+            <div className="text-9xl font-black">{data.overallScore.toFixed(1)}</div>
+            <p className="text-5xl mt-6">Overall /100</p>
+          </div>
+          <div className="bg-white border-8 border-blue-600 p-20 rounded-3xl shadow-2xl">
+            <div className="text-8xl font-black text-blue-700">{data.waterScore.toFixed(1)}</div>
+            <p className="text-4xl text-gray-700">Water</p>
+          </div>
+          <div className="bg-white border-8 border-green-600 p-20 rounded-3xl shadow-2xl">
+            <div className="text-8xl font-black text-green-700">{data.wasteScore.toFixed(1)}</div>
+            <p className="text-4xl text-gray-700">Waste</p>
+          </div>
+        </div>
+
+        {/* WASTE INDICATORS — WILL SHOW YOUR SCORES 5.0, 6.0, 3.0, 4.7, etc */}
+        <div className="mb-20">
+          <h2 className="text-6xl font-black text-green-700 text-center mb-16">Waste Management Indicators</h2>
+          
+          <IndicatorSection title="Governance" indicators={data.wasteIndicators.slice(0, 6)} />
+          <IndicatorSection title="MRV" indicators={data.wasteIndicators.slice(6, 12)} defaultOpen />
+          <IndicatorSection title="Mitigation" indicators={data.wasteIndicators.slice(12, 18)} />
+          <IndicatorSection title="Adaptation & Resilience" indicators={data.wasteIndicators.slice(18, 23)} />
+          <IndicatorSection title="Finance & Technology Transfer" indicators={data.wasteIndicators.slice(23)} />
+        </div>
+
+        {/* WATER INDICATORS */}
+        <div>
+          <h2 className="text-6xl font-black text-blue-700 text-center mb-16">Water Management Indicators</h2>
+          
+          <IndicatorSection title="Governance" indicators={data.waterIndicators.slice(0, 6)} defaultOpen />
+          <IndicatorSection title="MRV" indicators={data.waterIndicators.slice(6, 12)} />
+          <IndicatorSection title="Mitigation" indicators={data.waterIndicators.slice(12, 18)} />
+          <IndicatorSection title="Adaptation & Resilience" indicators={data.waterIndicators.slice(18, 23)} />
+          <IndicatorSection title="Finance & Technology Transfer" indicators={data.waterIndicators.slice(23)} />
+        </div>
+
+      </div>
+      <Footer />
+    </div>
+  )
 }

@@ -27,7 +27,7 @@ export function createCountiesRoutes(db: Database): Router {
         WHERE cp.sector = ? AND cp.year = ?
         ORDER BY cp.sector_score DESC
         LIMIT 20
-      `, [sector, year]);
+      `).all(sector, year);
 
       const performanceMap: Record<string, string> = {
         '90-100': 'Outstanding',

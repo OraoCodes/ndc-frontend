@@ -15,6 +15,36 @@ const governanceData = [
     { rank: 7, county: "Nairobi", water: 15, wasteMgt: 11, avgScore: 21, performance: "Average" },
 ]
 
+
+const performanceColors = {
+    Outstanding: "bg-green-500",
+    Satisfactory: "bg-emerald-600",
+    Good: "bg-yellow-400 text-black",
+    Average: "bg-orange-500",
+    Poor: "bg-red-500",
+}
+
+// Mobile card view
+const CardView = ({ data }) => (
+    <div className="md:hidden space-y-4">
+        {data.map((row, idx) => (
+            <div key={idx} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                <div className="flex justify-between items-start mb-2">
+                    <h4 className="text-lg font-semibold text-gray-900">{row.rank}. {row.county}</h4>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${performanceColors[row.performance]}`}>
+                        {row.performance}
+                    </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex justify-between"><span className="text-gray-500">Water:</span> <span>{row.water}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Waste Mgt:</span> <span>{row.wasteMgt}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Avg Score:</span> <span className="font-semibold">{row.avgScore}</span></div>
+                </div>
+            </div>
+        ))}
+    </div>
+)
+
 export default function Governance() {
     return (
         <main>
@@ -33,13 +63,19 @@ export default function Governance() {
                             <img src="/image 9.svg" alt="Background" />
                         </div>
 
-                        {/* Content */}
+                        
+                          
+
+                             {/* Content */}
                         <div>
                             <h2 className="text-2xl font-bold mb-6">County Rankings</h2>
                             <p className="text-sm text-muted-foreground mb-6">Complete performance and indicators</p>
 
-                            <div className="bg-white rounded-lg border border-border p-4">
-                                <div className="overflow-x-auto">
+                            
+                            {/* Mobile Card View */}
+                            <CardView data={governanceData} />
+                            <div className="hidden overflow-x-auto md:block bg-white rounded-lg border border-border p-4">
+                                <div className="">
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="border-b border-border">

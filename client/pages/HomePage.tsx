@@ -86,20 +86,22 @@ export default function Home() {
         fetchSummaryData();
     }, []);
 
-    const rawData = activeTab === "water" ? waterSummaryData : wasteSummaryData;
-
+        const rawData = activeTab === "water" ? waterSummaryData : wasteSummaryData;
     const safeData = Array.isArray(rawData) ? rawData : [];
 
     const rankedData: RankedCounty[] = safeData
-        .filter((item): item is CountySummaryPerformance =>
-            !!item &&
-            typeof item.name === "string" &&
-            typeof item.score === "number"
+        .map((item: any) => ({
+            name: item.name || item.county || "Unknown",
+            score: Number(item.score ?? item.indexScore ?? 0),
+            performance: item.performance || "Poor"
+        }))
+        .filter((item): item is { name: string; score: number } => 
+            typeof item.name === "string" && item.score > 0
         )
         .sort((a, b) => b.score - a.score)
         .map((item, index) => ({
             ...item,
-            rank: index + 1,
+            rank: index + 1
         }));
 
     const getPerformanceBadge = (score: number) => {
@@ -281,11 +283,11 @@ export default function Home() {
                                         className="bg-white rounded-xl shadow-md border border-gray-100 p-4 flex flex-col"
                                     >
                                         {/* Top Image */}
-                                        <img
+                                        {/* <img
                                             src={publication.image || "/placeholder-report.png"}
                                             alt={publication.title}
                                             className="w-full h-40 object-cover rounded-lg mb-4"
-                                        />
+                                        /> */}
 
                                         {/* Title */}
                                         <h3 className="text-gray-900 font-semibold text-base leading-snug mb-2">

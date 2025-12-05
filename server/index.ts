@@ -10,7 +10,7 @@ import { createIndicatorsRoutes } from "./routes/indicator.ts"; // FIX 4: Added 
 import { createSummaryRoutes } from "./routes/summary.ts" // FIX 5: Added .js extension
 import { createPublicationsRoutes } from "./routes/publications.ts";
 import authRouter from "./routes/auth.ts"; // FIX 6: Added .js extension
-
+import scoresRouter from "./routes/score.ts";
 /**
  * Create and return an Express app wired with routes and middleware.
  * This function does NOT call `app.listen` so it can be used as middleware
@@ -36,6 +36,7 @@ export async function createServer() {
   app.use("/publications", createPublicationsRoutes(db));
   app.use("/indicators", createIndicatorsRoutes(db))
 
+  app.use("/api/scores", scoresRouter);
 
   app.use("/counties/summary-performance", createSummaryRoutes(db))
   // Example API routes

@@ -53,7 +53,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   // Authentication
   login: async ({ email, password }: { email: string; password: string }) => {
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -106,6 +106,13 @@ export const api = {
   deleteCounty: async (id: number) => request<void>(`/counties/${id}`, { method: 'DELETE' }),
   getCountySummaryPerformance: async (thematicArea: string): Promise<CountySummaryPerformance[]> => request<CountySummaryPerformance[]>(`/counties/summary-performance/${thematicArea}`),
 
+  getCountyPerformance: async (countyName: string, year = "2025") => {
+    return request<any>(`/counties/${encodeURIComponent(countyName)}/performance?year=${year}`)
+  },
+
+  getSectorSummary: async (sector: "water" | "waste") => {
+    return request<any>(`/counties/summary-performance/${sector}`)
+  },
   // Publications
   listPublications: async (): Promise<any[]> => request<any[]>('/publications'),
   getPublication: async (id: number): Promise<any> => request<any>(`/publications/${id}`),

@@ -18,7 +18,7 @@ export function Footer() {
                                     About the tool
                                 </a>
                             </li>
-                            <li>
+                           {/* <li>
                                 <a href="#" className="hover:text-white transition-colors">
                                     Partners
                                 </a>
@@ -27,7 +27,7 @@ export function Footer() {
                                 <a href="#" className="hover:text-white transition-colors">
                                     FAQs
                                 </a>
-                            </li>
+                            </li> */}
                         </ul>
                     </div>
                     {/* Thematic Areas */}

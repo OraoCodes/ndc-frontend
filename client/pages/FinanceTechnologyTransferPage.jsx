@@ -12,6 +12,34 @@ const mrvData = [
     { rank: 4, county: "Nakuru", water: 14, wasteMgt: 13, avgScore: 27, performance: "Satisfactory" },
 ]
 
+const performanceColors = {
+    Outstanding: "bg-green-600",
+    Satisfactory: "bg-emerald-600",
+    Good: "bg-yellow-400 text-black",
+    Average: "bg-orange-500",
+    Poor: "bg-red-500",
+}
+
+// Mobile card view
+const CardView = ({ data }) => (
+    <div className="md:hidden space-y-4">
+        {data.map((row) => (
+            <div key={row.rank} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                <div className="flex justify-between items-start mb-2">
+                    <h4 className="text-lg font-semibold text-gray-900">{row.rank}. {row.county}</h4>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${performanceColors[row.performance]}`}>
+                        {row.performance}
+                    </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex justify-between"><span className="text-gray-500">Water:</span> <span>{row.water}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Waste Mgt:</span> <span>{row.wasteMgt}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Avg Score:</span> <span className="font-semibold">{row.avgScore}</span></div>
+                </div>
+            </div>
+        ))}
+    </div>
+)
 export default function FinanceTechnologyTransfer() {
     return (
         <main>
@@ -31,9 +59,11 @@ export default function FinanceTechnologyTransfer() {
                         <div>
                             <h2 className="text-2xl font-bold mb-6">County Rankings</h2>
                             <p className="text-sm text-muted-foreground mb-6">Complete performance and indicators</p>
+                                                        {/* Mobile Card View */}
+                            <CardView data={financeData} />
 
-                            <div className="bg-white rounded-lg border border-border overflow-hidden">
-                                <div className="overflow-x-auto">
+                            <div className="hidden overflow-x-auto md:block bg-white rounded-lg border border-border overflow-hidden">
+                                <div className="">
                                     <table className="w-full text-sm">
                                         <thead className="bg-slate-50">
                                             <tr className="border-b">

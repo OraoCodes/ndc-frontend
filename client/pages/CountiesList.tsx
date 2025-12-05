@@ -1,5 +1,5 @@
 import { MainLayout } from "@/components/MainLayout";
-import { Plus } from "lucide-react";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type County } from "@/lib/api";
@@ -7,20 +7,19 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function CountiesList() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data, isLoading, isError, error } = useQuery<County[]>({
     queryKey: ["counties"],
     queryFn: api.listCounties,
   });
 
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.deleteCounty(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["counties"] });
-      toast({ title: "Deleted", description: "County deleted." });
+      toast({ title: "Success", description: "County deleted successfully." });
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err?.message ?? "Failed to delete county" });
@@ -29,76 +28,130 @@ export default function CountiesList() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-foreground">Counties</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h2 className="text-3xl font-bold text-foreground">Counties</h2>
           <button
             onClick={() => navigate("/county-data")}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
+            className="flex items-center justify-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all font-medium shadow-lg"
           >
-            <Plus size={18} />
-            Add New
+            <Plus size={20} />
+            Add New County
           </button>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-lg border border-border overflow-hidden">
-          <div className="overflow-x-auto">
+        {/* Responsive Table / Card View */}
+        <div className="bg-white rounded-2xl shadow-lg border border-border overflow-hidden">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-background border-b border-border">
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">County</th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Population</th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Thematic Area ID</th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Operation</th>
+                <tr className="bg-muted/50 border-b border-border">
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">County</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">Population</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">Total Score</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading && (
                   <tr>
-                    <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">Loading...</td>
+                    <td colSpan={4} className="py-12 text-center text-muted-foreground">Loading counties...</td>
                   </tr>
                 )}
                 {isError && (
                   <tr>
-                    <td colSpan={4} className="py-6 px-6 text-center text-destructive">Error: {(error as Error)?.message}</td>
+                    <td colSpan={4} className="py-12 text-center text-destructive">Error: {(error as Error)?.message}</td>
                   </tr>
                 )}
-                {data?.map((county, index) => (
-                  <tr key={county.id} className={(index === (data?.length ?? 0) - 1 ? "border-b-0" : "border-b border-border") + " hover:bg-background/50 transition-colors"}>
-                    <td className="py-4 px-6 text-foreground text-sm font-medium">{county.name}</td>
-                    <td className="py-4 px-6 text-foreground text-sm">{county.population ?? '-'}</td>
-                    <td className="py-4 px-6 text-foreground text-sm">{county.thematic_area_id ?? '-'}</td>
-                    <td className="py-4 px-6 text-sm">
+                {data?.map((county) => (
+                  <tr key={county.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                    <td className="py-5 px-6 font-medium text-foreground">{county.name}</td>
+                    <td className="py-5 px-6 text-foreground">{county.population?.toLocaleString() || "-"}</td>
+                    <td className="py-5 px-6 text-foreground">{county.thematic_area_id ?? "-"}</td>
+                    <td className="py-5 px-6">
                       <div className="flex items-center gap-4">
                         <button
                           onClick={() => navigate("/county-data", { state: { countyId: county.id } })}
-                          className="text-primary hover:text-primary/80 transition-colors font-medium"
+                          className="text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition"
                         >
+                          <Edit size={16} />
                           Edit
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`Delete county "${county.name}"?`)) {
+                            if (confirm(`Delete "${county.name}" permanently?`)) {
                               deleteMutation.mutate(Number(county.id));
                             }
                           }}
-                          className="text-destructive hover:text-destructive/80 transition-colors font-medium"
+                          className="text-destructive hover:text-destructive/80 font-medium flex items-center gap-1 transition"
                         >
+                          <Trash2 size={16} />
                           Delete
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
-                {data && data.length === 0 && (
+                {data?.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">No counties found.</td>
+                    <td colSpan={4} className="py-12 text-center text-muted-foreground">No counties found.</td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="block md:hidden">
+            {isLoading && (
+              <div className="p-8 text-center text-muted-foreground">Loading counties...</div>
+            )}
+            {isError && (
+              <div className="p-8 text-center text-destructive">Error loading counties</div>
+            )}
+            {data?.map((county) => (
+              <div
+                key={county.id}
+                className="border-b border-border last:border-0 p-6 hover:bg-muted/20 transition-colors"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-bold text-lg text-foreground">{county.name}</h3>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => navigate("/county-data", { state: { countyId: county.id } })}
+                      className="text-primary hover:text-primary/80"
+                    >
+                      <Edit size={20} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete "${county.name}"?`)) {
+                          deleteMutation.mutate(Number(county.id));
+                        }
+                      }}
+                      className="text-destructive hover:text-destructive/80"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Population:</span>
+                    <p className="font-medium">{county.population?.toLocaleString() || "-"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Total Score:</span>
+                    <p className="font-medium">{county.thematic_area_id ?? "-"}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {data?.length === 0 && (
+              <div className="p-8 text-center text-muted-foreground">No counties found.</div>
+            )}
           </div>
         </div>
       </div>

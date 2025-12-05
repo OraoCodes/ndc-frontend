@@ -1,22 +1,40 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Grid, BarChart3, MapPin, Globe, LogOut, BookOpen } from "lucide-react";
+import { Menu, X, Home, Grid, BarChart3, MapPin, Globe, LogOut, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
   const location = useLocation();
-
+   const [isOpen, setIsOpen] = useState(false);
   const isActive = (path: string) => location.pathname === path;
 
   const navItems = [
     { label: "Home", icon: Home, path: "/dashboard" },
     { label: "Thematic Areas", icon: Grid, path: "/thematic-areas" },
     { label: "Publications", icon: BookOpen, path: "/publications" },
-    // { label: "Indicators", icon: BarChart3, path: "/indicators" },
+    { label: "Indicators", icon: BarChart3, path: "/indicators" },
     { label: "Counties", icon: MapPin, path: "/counties-list" },
   ];
 
   return (
-    <div className="w-64 bg-sidebar h-screen flex flex-col fixed left-0 top-0 text-sidebar-foreground">
+    <>
+     {/* Mobile Toggle Button */}
+      <button
+        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-md text-sidebar-foreground"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {isOpen ? <X size={24} /> : <Menu size={24} />}
+      </button>
+
+      {/* Sidebar */}
+      <div
+        className={cn(
+          "fixed top-0 left-0 h-screen bg-sidebar text-sidebar-foreground flex flex-col transition-transform z-40",
+          "w-64",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+          "md:transform-none md:translate-x-0 md-relative"
+        )}
+      >
       {/* Header */}
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-start gap-3">
@@ -69,5 +87,13 @@ export function Sidebar() {
         </button>
       </div>
     </div>
+     {/* Overlay for mobile when sidebar is open */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-30 md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </>
   );
 }

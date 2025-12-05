@@ -1,268 +1,202 @@
+// client/pages/RegisterPage.jsx
 "use client"
 
-import React from "react"
-
+import React, { useState } from "react"
 import { AuthLayout } from "@/components/auth-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useState } from "react"
-import { useNavigate, Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import { Check, X, Loader2 } from "lucide-react"
 
-export default function SignupPage() {
-    const navigate = useNavigate()
-    const [loading, setLoading] = useState(false)
-    const [formData, setFormData] = useState({
-        fullName: "",
-        email: "",
-        organisation: "",
-        phoneNumber: "",
-        position: "",
-        password: "",
-        termsAgreed: false,
-    })
+export default function RegisterPage() {
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-    const [passwordStrength, setPasswordStrength] = useState({
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    organisation: "",
+    phoneNumber: "",
+    position: "",
+    password: "",
+    termsAgreed: false,
+  })
+
+  const [passwordStrength, setPasswordStrength] = useState({
     length: false,
     uppercase: false,
     lowercase: false,
     number: false,
     special: false,
-  });
+  })
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target
-        setFormData((prev) => ({
-            ...prev,
-            [name]: type === "checkbox" ? checked : value,
-        }))
+  const strengthScore = Object.values(passwordStrength).filter(Boolean).length
+  const isStrong = strengthScore === 5
 
-       if (name === "password") {
+  // Fixed: Removed TypeScript annotation since this is .jsx (not .tsx)
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value
+    }))
+
+    if (name === "password") {
       setPasswordStrength({
         length: value.length >= 8,
         uppercase: /[A-Z]/.test(value),
         lowercase: /[a-z]/.test(value),
         number: /\d/.test(value),
         special: /[!@#$%^&*(),.?":{}|<>]/.test(value),
-      });
+      })
     }
+  }
 
-    const isPasswordStrong = Object.values(passwordStrength).every(Boolean);
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
 
- const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    if (!isPasswordStrong) {
-      alert("Please create a stronger password (see requirements below)");
-      setLoading(false);
-      return;
+    if (!isStrong) {
+      setError("Password must meet all strength requirements")
+      setLoading(false)
+      return
     }
 
     if (!formData.termsAgreed) {
-        alert("You must agree to the terms and conditions");
-        setLoading(false);
-        return;
+      setError("You must agree to the terms and conditions")
+      setLoading(false)
+      return
     }
 
     try {
-        const response = await fetch("/api/auth/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(formData),
-        });
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
 
-        const data = await response.json();
+      const data = await res.json()
 
-        if (!response.ok) {
-            alert(data.message || "Registration failed");
-            setLoading(false);
-            return;
-        }
+      if (!res.ok) {
+        setError(data.message || "Registration failed")
+        setLoading(false)
+        return
+      }
 
-        // Only reaches here on real success
-        
-        navigate("/dashboard");   // This will work now
+      // Success!
+      localStorage.setItem("token", data.token)
+      setTimeout(() => navigate("/dashboard"), 500)
 
-    } catch (error) {
-        console.error("Network error:", error);
-        alert("Failed to connect to server");
+    } catch (err) {
+      setError("Network error. Please try again.")
     } finally {
-        setLoading(false);
+      setLoading(false)
     }
-};
+  }
 
-    return (
-        <AuthLayout title="Create an Account" description="Please create an account to add data to the NDC tool">
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                    <label htmlFor="fullName" className="block text-sm font-medium text-gray-900 mb-2">
-                        Full Name
-                    </label>
-                    <Input
-                        id="fullName"
-                        name="fullName"
-                        type="text"
-                        placeholder="Value"
-                        value={formData.fullName}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
+  return (
+    <AuthLayout title="Create an Account" description="Join the NDC Water & Waste Tracking Platform">
+      <form onSubmit={handleSubmit} className="space-y-5">
 
-                <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-2">
-                        Email
-                    </label>
-                    <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        placeholder="Value"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-900 mb-2">Full Name</label>
+          <Input name="fullName" required onChange={handleChange} value={formData.fullName} placeholder="John Doe" />
+        </div>
 
-                <div>
-                    <label htmlFor="organisation" className="block text-sm font-medium text-gray-900 mb-2">
-                        Organisation
-                    </label>
-                    <Input
-                        id="organisation"
-                        name="organisation"
-                        type="text"
-                        placeholder="Value"
-                        value={formData.organisation}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-900 mb-2">Email</label>
+          <Input name="email" type="email" required onChange={handleChange} value={formData.email} placeholder="john@example.com" />
+        </div>
 
-                <div>
-                    <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-900 mb-2">
-                        Phone Number
-                    </label>
-                    <Input
-                        id="phoneNumber"
-                        name="phoneNumber"
-                        type="tel"
-                        placeholder="Value"
-                        value={formData.phoneNumber}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-900 mb-2">Organisation</label>
+          <Input name="organisation" onChange={handleChange} value={formData.organisation} placeholder="County Government of Nairobi" />
+        </div>
 
-                <div>
-                    <label htmlFor="position" className="block text-sm font-medium text-gray-900 mb-2">
-                        Position
-                    </label>
-                    <Input
-                        id="position"
-                        name="position"
-                        type="text"
-                        placeholder="Value"
-                        value={formData.position}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-900 mb-2">Phone Number</label>
+          <Input name="phoneNumber" type="tel" onChange={handleChange} value={formData.phoneNumber} placeholder="+254 712 345 678" />
+        </div>
 
-                <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-900 mb-2">
-                        Password
-                    </label>
-                    <Input
-                        id="password"
-                        name="password"
-                        type="password"
-                        placeholder="Enter a strong password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        required
-                        className="mb-3"
-                    />
-                    {/* Strength Bar */}
-          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
-            <div
-              className={`h-full transition-all duration-300 ${
-                strengthScore === 5
-                  ? "bg-green-500"
-                  : strengthScore >= 3
-                  ? "bg-yellow-500"
-                  : strengthScore >= 1
-                  ? "bg-orange-500"
-                  : "bg-red-500"
-              }`}
-              style={{ width: `${(strengthScore / 5) * 100}%` }}
-            />
-            <p className="text-xs text-gray-600 mb-2">Your password must contain:</p>
-          <ul className="space-y-1 text-xs">
-            {[
-              { key: "length", text: "At least 8 characters" },
-              { key: "uppercase", text: "One uppercase letter" },
-              { key: "lowercase", text: "One lowercase letter" },
-              { key: "number", text: "One number" },
-              { key: "special", text: "One special character (!@#$ etc.)" },
-            ].map((rule) => (
-              <li key={rule.key} className="flex items-center gap-2">
-                {passwordStrength[rule.key as keyof typeof passwordStrength] ? (
-                  <Check className="w-4 h-4 text-green-600" />
-                ) : (
-                  <X className="w-4 h-4 text-red-500" />
-                )}
-                <span className={passwordStrength[rule.key as keyof typeof passwordStrength] ? "text-green-700" : "text-gray-500"}>
-                  {rule.text}
-                </span>
-              </li>
-            ))}
-          </ul>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-900 mb-2">Position</label>
+          <Input name="position" onChange={handleChange} value={formData.position} placeholder="Climate Officer" />
+        </div>
 
-                </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-900 mb-2">Password</label>
+          <Input name="password" type="password" required onChange={handleChange} value={formData.password} placeholder="Enter strong password" />
 
-                <div className="flex items-center gap-2">
-                    <input
-                        id="terms"
-                        name="termsAgreed"
-                        type="checkbox"
-                        checked={formData.termsAgreed}
-                        onChange={handleChange}
-                        required
-                        className="w-4 h-4 accent-gray-900"
-                    />
-                    <label htmlFor="terms" className="text-sm text-gray-900">
-                        I agree to the{" "}
-                        <a href="#" className="underline hover:no-underline">
-                            Terms & Conditions
-                        </a>
-                    </label>
-                </div>
-
-                <Button
-                    size="default"
-                    className="w-full bg-gray-800 hover:bg-gray-900 text-white py-6 rounded-md font-medium mt-6"
-                    disabled={loading}
-                >
-                    {loading ? "Creating Account..." : "Create Account"}
-                </Button>
-
-                <div className="mt-8 text-center">
-                <p className="text-sm text-gray-600">
-                    Already have an account?{" "}
-                    <Link
-                        to="/login"
-                        className="font-medium text-blue-600 hover:text-blue-800 underline-offset-4 hover:underline transition"
-                    >
-                        Login
-                    </Link>
-                </p>
+          <div className="mt-4">
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
+              <div
+                className={`h-full transition-all duration-300 ${
+                  isStrong ? "bg-green-500" : strengthScore >= 3 ? "bg-yellow-500" : strengthScore >= 1 ? "bg-orange-500" : "bg-red-500"
+                }`}
+                style={{ width: `${(strengthScore / 5) * 100}%` }}
+              />
             </div>
 
+            <ul className="space-y-1 text-xs text-gray-600">
+              {[
+                { text: "At least 8 characters", check: passwordStrength.length },
+                { text: "One uppercase letter", check: passwordStrength.uppercase },
+                { text: "One lowercase letter", check: passwordStrength.lowercase },
+                { text: "One number", check: passwordStrength.number },
+                { text: "One special character (!@#$ etc.)", check: passwordStrength.special },
+              ].map((item, i) => (
+                <li key={i} className="flex items-center gap-2">
+                  {item.check ? <Check className="w-4 h-4 text-green-600" /> : <X className="w-4 h-4 text-red-500" />}
+                  <span className={item.check ? "text-green-700" : "text-gray-500"}>{item.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
-            </form>
-        </AuthLayout>
-    )
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            name="termsAgreed"
+            required
+            onChange={handleChange}
+            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <label className="text-sm text-gray-700">
+            I agree to the <a href="#" className="underline hover:text-blue-600">Terms & Conditions</a>
+          </label>
+        </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        <Button
+          size="default"
+          className="w-full bg-gray-800 hover:bg-gray-900 text-white py-6 rounded-md font-medium mt-6"
+                    disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Creating Account...
+            </>
+          ) : (
+            "Create Account"
+          )}
+        </Button>
+
+        <p className="text-center text-sm text-gray-600 mt-6">
+          Already have an account?{" "}
+          <Link to="/login" className="font-bold text-blue-600 hover:underline">
+            Login here
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
+  )
 }

@@ -1,38 +1,55 @@
+// AddThematicArea.tsx
 import { MainLayout } from "@/components/MainLayout";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 export default function AddThematicArea() {
   const [sector, setSector] = useState("");
   const [thematicArea, setThematicArea] = useState("");
-
-  const handleSave = () => {
-    if (sector && thematicArea) {
-      // Trigger mutation
-      mutation.mutate({ name: thematicArea, description: sector });
-    }
-  };
-
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const mutation = useMutation({
-    mutationFn: (payload: { name: string; description?: string }) =>
+    mutationFn: (payload: { name: string; description: string }) =>
       api.createThematicArea(payload),
     onSuccess: () => {
-      // Invalidate thematic areas list so it refetches
       queryClient.invalidateQueries({ queryKey: ["thematicAreas"] });
-      toast({ title: "Saved", description: "Thematic area created successfully." });
+      toast({ title: "Success", description: "Thematic area created successfully." });
       setSector("");
       setThematicArea("");
+      navigate("/thematic-areas"); // much better UX
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err?.message ?? "Failed to create" });
+      toast({
+        title: "Error",
+        description:
+          err?.response?.data?.error || err?.message || "Failed to create thematic area",
+        variant: "destructive",
+      });
     },
   });
+
+  const handleSave = () => {
+    if (!sector) {
+      toast({ title: "Missing sector", description: "Please select a sector", variant: "destructive" });
+      return;
+    }
+    if (!thematicArea.trim()) {
+      toast({ title: "Missing name", description: "Please enter the thematic area name", variant: "destructive" });
+      return;
+    }
+
+    // THIS IS THE FIX → swap the fields + trim + send null instead of empty string
+    mutation.mutate({
+      name: thematicArea.trim(),
+      description: sector, // sector is actually the "category" here
+    });
+  };
 
   return (
     <MainLayout>
@@ -45,7 +62,7 @@ export default function AddThematicArea() {
           {/* Sector Dropdown */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Sector
+              Sector <span className="text-destructive">*</span>
             </label>
             <div className="relative">
               <select
@@ -53,9 +70,10 @@ export default function AddThematicArea() {
                 onChange={(e) => setSector(e.target.value)}
                 className="w-full px-4 py-2 pr-10 bg-white border border-input rounded-lg text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <option value="">Select</option>
+                <option value="">Select sector</option>
                 <option value="Water">Water</option>
                 <option value="Waste">Waste</option>
+                {/* add more as needed */}
               </select>
               <ChevronDown
                 size={18}
@@ -64,27 +82,35 @@ export default function AddThematicArea() {
             </div>
           </div>
 
-          {/* Thematic Area Input */}
+          {/* Thematic Area Name */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Thematic Area
+              Thematic Area Name <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
               value={thematicArea}
               onChange={(e) => setThematicArea(e.target.value)}
-              placeholder="Enter thematic area"
+              placeholder="e.g. Flood Risk Management"
               className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
-          {/* Save Button */}
-          <button
-            onClick={handleSave}
-            className="w-full px-4 py-2 bg-sidebar text-sidebar-foreground rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
-          >
-            Save
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSave}
+              disabled={mutation.isPending}
+              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity font-medium text-sm disabled:opacity-50"
+            >
+              {mutation.isPending ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={() => navigate("/thematic-areas")}
+              className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors font-medium text-sm"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </MainLayout>

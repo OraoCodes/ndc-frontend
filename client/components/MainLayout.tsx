@@ -9,7 +9,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
-      <div className="flex-1 ml-64 flex flex-col">
+      <div className="flex-1 md:ml-64 flex flex-col">
         {/* Header */}
         <header className="h-16 bg-white border-b border-border px-8 flex items-center justify-between">
           <input
