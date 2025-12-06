@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
-import { api } from "@/lib/api"
+import { getCountySummaryPerformance } from "@/lib/supabase-api"
 
 interface RegionalAnalysisChartProps {
   title?: string
@@ -20,7 +20,7 @@ export function RegionalAnalysisChart({ title = "Regional Analysis", type }: Reg
     const fetchAverages = async () => {
       try {
         setLoading(true)
-        const summary = await api.getCountySummaryPerformance(type)
+        const summary = await getCountySummaryPerformance(type)
 
         if (!summary || summary.length === 0) {
           setChartData([])

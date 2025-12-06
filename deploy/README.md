@@ -42,4 +42,4 @@ Files
 - The `ndc.service` uses `/usr/bin/node dist/server/node-build.mjs` as the
   ExecStart; adjust if Node is installed elsewhere or if you prefer `npm start`.
 - For TLS use Certbot: `sudo certbot --apache -d ndc.iris-studios.co.ke`.
-- For large file uploads consider moving file storage out of SQLite.
+- File storage is handled by Supabase Storage.

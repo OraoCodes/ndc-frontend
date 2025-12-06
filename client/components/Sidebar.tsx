@@ -1,12 +1,24 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, Home, Grid, BarChart3, MapPin, Globe, LogOut, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export function Sidebar() {
   const location = useLocation();
-   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   const navItems = [
     { label: "Home", icon: Home, path: "/dashboard" },
@@ -81,10 +93,15 @@ export function Sidebar() {
           <Globe size={20} />
           <span className="text-sm font-medium">Public Portal</span>
         </Link>
-        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-border/30 transition-colors text-left">
-          <LogOut size={20} />
-          <span className="text-sm font-medium">Log out</span>
-        </button>
+        {user && (
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-border/30 transition-colors text-left"
+          >
+            <LogOut size={20} />
+            <span className="text-sm font-medium">Log out</span>
+          </button>
+        )}
       </div>
     </div>
      {/* Overlay for mobile when sidebar is open */}

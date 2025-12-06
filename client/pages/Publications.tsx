@@ -1,7 +1,8 @@
 import { MainLayout } from "@/components/MainLayout";
 import { Download, Upload } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { listPublications, downloadPublication, createPublication } from "@/lib/supabase-api";
+import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 
@@ -12,13 +13,44 @@ export default function Publications() {
     const qc = useQueryClient();
     const { data: publications, isLoading } = useQuery({
         queryKey: ["publications"],
-        queryFn: api.listPublications,
+        queryFn: listPublications,
     });
 
     const [uploading, setUploading] = useState(false);
 
     const uploadMutation = useMutation({
-        mutationFn: api.createPublication,
+        mutationFn: async (payload: { title: string; filename: string; date?: string; summary?: string; contentBase64: string }) => {
+            // Upload file to Supabase Storage
+            const filePath = `publications/${Date.now()}_${payload.filename}`;
+            const fileBlob = Uint8Array.from(atob(payload.contentBase64), c => c.charCodeAt(0));
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('publications')
+                .upload(filePath, fileBlob, {
+                    contentType: 'application/pdf',
+                    upsert: false
+                });
+
+            if (uploadError) throw uploadError;
+
+            // Create publication record in database
+            const { data: pubData, error: dbError } = await supabase
+                .from('publications')
+                .insert({
+                    title: payload.title,
+                    filename: payload.filename,
+                    date: payload.date || new Date().toISOString().split('T')[0],
+                    summary: payload.summary || null,
+                    storage_path: filePath,
+                    file_size: fileBlob.length,
+                    mime_type: 'application/pdf'
+                })
+                .select()
+                .single();
+
+            if (dbError) throw dbError;
+            return pubData;
+        },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["publications"] });
         },
@@ -65,18 +97,13 @@ export default function Publications() {
                 const contentBase64 = (reader.result as string).split(",")[1];
                 const thumbnailBase64 = await generateThumbnail(file);
 
-                const payload: any = {
+                const payload = {
                     title: file.name.replace(/\.pdf$/i, ""),
                     filename: file.name,
                     contentBase64,
                     summary: "Uploaded publication",
-                    date: new Date().toISOString(),
+                    date: new Date().toISOString().split('T')[0],
                 };
-
-                // Only send thumbnail if your API supports it
-                if (thumbnailBase64) {
-                    payload.thumbnailBase64 = thumbnailBase64;
-                }
 
                 await uploadMutation.mutateAsync(payload);
             };
@@ -91,7 +118,7 @@ export default function Publications() {
 
     const onDownload = async (id: number, filename?: string) => {
         try {
-            const blob = await api.downloadPublication(id);
+            const blob = await downloadPublication(id);
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -100,6 +127,7 @@ export default function Publications() {
             URL.revokeObjectURL(url);
         } catch (err) {
             console.error(err);
+            alert('Failed to download publication. Please try again.');
         }
     };
 

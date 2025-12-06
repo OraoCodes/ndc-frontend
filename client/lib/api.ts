@@ -50,8 +50,13 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+/**
+ * @deprecated This API client is deprecated. Use Supabase directly via client/lib/supabase-api.ts
+ * All data operations should use Supabase functions instead of Express API routes.
+ */
 export const api = {
-  // Authentication
+  // Authentication - DEPRECATED: Now handled by Supabase Auth via AuthContext
+  // These are kept for backward compatibility but should not be used
   login: async ({ email, password }: { email: string; password: string }) => {
     const res = await fetch("/auth/login", {
       method: "POST",

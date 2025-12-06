@@ -32,6 +32,9 @@ export default function LoginPage() {
     try {
       await login(email, password)
 
+      // Wait a moment for user state to be set in AuthContext
+      await new Promise(resolve => setTimeout(resolve, 200))
+
       toast({
         title: "Welcome back!",
         description: "You have successfully logged in.",

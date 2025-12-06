@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Link, useNavigate } from "react-router-dom"
 import { Check, X, Loader2 } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const { register, user, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -72,27 +74,44 @@ export default function RegisterPage() {
     }
 
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.message || "Registration failed")
+      // Use Supabase Auth via AuthContext
+      const result = await register(formData)
+      
+      if (result.requiresEmailConfirmation) {
+        // Email confirmation required - show success message
+        setError("")
         setLoading(false)
-        return
+        // Show success message
+        alert(`✅ Registration successful!\n\nPlease check your email (${result.email}) to confirm your account.\n\nAfter confirming, you can log in.`)
+        // Redirect to login page
+        navigate("/login")
+      } else {
+        // Success! Wait for user profile to be loaded before redirecting
+        setError("")
+        setLoading(false)
+        
+        // Wait for user to be loaded in AuthContext (with timeout)
+        let attempts = 0
+        const maxAttempts = 20 // 2 seconds max wait
+        
+        while (attempts < maxAttempts) {
+          // Check if user is now loaded (this will be updated by AuthContext)
+          // We'll check the auth state after a short delay
+          await new Promise(resolve => setTimeout(resolve, 100))
+          attempts++
+          
+          // The user state will be updated by the onAuthStateChange listener
+          // We'll just wait a reasonable amount of time for it to propagate
+          if (attempts >= 5) { // Wait at least 500ms
+            break
+          }
+        }
+        
+        // Redirect to dashboard - user should be loaded by now
+        navigate("/dashboard")
       }
-
-      // Success!
-      localStorage.setItem("token", data.token)
-      setTimeout(() => navigate("/dashboard"), 500)
-
     } catch (err) {
-      setError("Network error. Please try again.")
-    } finally {
+      setError(err.message || "Registration failed. Please try again.")
       setLoading(false)
     }
   }

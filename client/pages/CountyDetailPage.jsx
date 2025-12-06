@@ -80,9 +80,9 @@ export default function CountyDetailPage() {
       if (!slug) return
       setLoading(true)
       try {
-        const res = await fetch(`/api/counties/${slug}/performance?year=${year}`)
-        if (!res.ok) throw new Error("Failed")
-        const raw = await res.json()
+        // Use Supabase directly instead of Express API
+        const { getCountyPerformance } = await import("@/lib/supabase-api");
+        const raw = await getCountyPerformance(slug, parseInt(year))
 
         console.log("RAW FROM SERVER:", raw) // ← YOU SEE THIS
 

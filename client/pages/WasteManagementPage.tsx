@@ -9,7 +9,7 @@ import { KenyaMap } from "@/components/kenya-map"
 import { CountyWasteTable } from "@/components/county-waste-table"
 import { RegionalAnalysisChart } from "@/components/regional-analysis-chart"
 import { Loader2 } from "lucide-react"
-import { api, CountySummaryPerformance } from "@/lib/api"
+import { getCountySummaryPerformance, type CountySummaryPerformance } from "@/lib/supabase-api"
 
 interface RankedCounty extends CountySummaryPerformance {
   rank: number

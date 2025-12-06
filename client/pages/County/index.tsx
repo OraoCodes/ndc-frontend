@@ -7,7 +7,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { IndicatorSection } from "@/components/indicator-section"
 import { Loader2 } from "lucide-react"
-import { api } from "@/lib/api"
+import { listCounties, getCountyPerformance } from "@/lib/supabase-api"
 
 // ──────────────────────────────────────────────────────────────
 // ALL 62 OFFICIAL INDICATORS (EXACT TEXT FROM YOUR DOCUMENT)
@@ -146,12 +146,12 @@ export default function CountyPage() {
         setError(null)
 
         // 1. Validate county exists
-        const counties = await api.listCounties()
+        const counties = await listCounties()
         const county = counties.find((c: any) => c.name.toLowerCase() === urlName.toLowerCase())
         if (!county) throw new Error(`County "${urlName}" not found in database`)
 
         // 2. Fetch real performance data
-        const perf = await api.getCountyPerformance(county.name, "2025")
+        const perf = await getCountyPerformance(county.name, 2025)
 
         // 3. Transform flat arrays → grouped with real scores
         const water = mapIndicators(perf.waterIndicators || [], WATER_INDICATORS)

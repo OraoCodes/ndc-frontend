@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { Link } from "react-router-dom"
 import { Search, Menu, X, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { api } from "@/lib/api"
+import { listCounties } from "@/lib/supabase-api"
 
 // Static thematic areas (these don't change)
 const thematicAreasItems = [
@@ -27,7 +27,7 @@ export function Header({ currentPage }: { currentPage?: string }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.listCounties()
+    listCounties()
       .then(data => {
         const sorted = data.sort((a: County, b: County) => a.name.localeCompare(b.name))
         setCounties(sorted)

@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/MainLayout";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type ThematicArea } from "@/lib/api";
+import { listThematicAreas, deleteThematicArea, type ThematicArea } from "@/lib/supabase-api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ThematicAreas() {
@@ -10,14 +10,14 @@ export default function ThematicAreas() {
 
   const { data, isLoading, isError, error } = useQuery<ThematicArea[]>({
     queryKey: ["thematicAreas"],
-    queryFn: api.listThematicAreas,
+    queryFn: listThematicAreas,
   });
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.deleteThematicArea(id),
+    mutationFn: (id: number) => deleteThematicArea(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["thematicAreas"] });
       toast({ title: "Deleted", description: "Thematic area deleted." });

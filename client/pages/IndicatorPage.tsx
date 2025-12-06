@@ -6,9 +6,10 @@ import { MainLayout } from "@/components/MainLayout"
 interface Indicator {
   id: number
   sector: "water" | "waste"
-  thematicArea: string // This is your pillar name
-  indicator: string
-  scoring_method?: string
+  thematic_area: string // This is your pillar name
+  indicator_text: string
+  weight?: number
+  scoring_method?: string // Not in DB, kept for UI compatibility
 }
 
 
@@ -53,29 +54,29 @@ export default function IndicatorManagementPage() {
 
     setSaving(true)
     try {
-      const res = await fetch("/api/indicators", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newIndicator)
-      })
-      if (res.ok) {
-        const added = await res.json()
-        setIndicators(prev => [...prev, added])
-        setNewIndicator({ sector: "waste", thematicArea: "Governance", indicator: "", scoring_method: "Yes/No" })
-        setMessage("Indicator added!")
-      }
-    } catch {
-      setMessage("Failed")
+      const { createIndicator } = await import("@/lib/supabase-api");
+      const added = await createIndicator(mapIndicatorForSave(newIndicator));
+      setIndicators(prev => [...prev, added as any]);
+      setNewIndicator({ sector: "waste", thematicArea: "Governance", indicator: "", scoring_method: "Yes/No" });
+      setMessage("Indicator added!");
+    } catch (err: any) {
+      setMessage(err?.message || "Failed");
     } finally {
-      setSaving(false)
-      setTimeout(() => setMessage(""), 3000)
+      setSaving(false);
+      setTimeout(() => setMessage(""), 3000);
     }
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete permanently?")) return
-    await fetch(`/api/indicators/${id}`, { method: "DELETE" })
-    setIndicators(prev => prev.filter(i => i.id !== id))
+    if (!confirm("Delete permanently?")) return;
+    try {
+      const { deleteIndicator } = await import("@/lib/supabase-api");
+      await deleteIndicator(id);
+      setIndicators(prev => prev.filter(i => i.id !== id));
+    } catch (err) {
+      console.error("Failed to delete indicator:", err);
+      alert("Failed to delete indicator. Please try again.");
+    }
   }
 
   if (loading) {
@@ -182,7 +183,7 @@ export default function IndicatorManagementPage() {
             </div>
             <div className="bg-white rounded-b-3xl shadow-2xl border-4 border-blue-200 p-10">
               {PILLARS.map(pillar => {
-                const items = indicators.filter(i => i.sector === "water" && i.thematicArea === pillar)
+                const items = indicators.filter(i => i.sector === "water" && i.thematic_area === pillar)
                 if (items.length === 0) return null
                 return (
                   <div key={pillar} className="mb-12 last:mb-0">
@@ -193,7 +194,7 @@ export default function IndicatorManagementPage() {
                       {items.map(ind => (
                         <div key={ind.id} className="flex items-center justify-between bg-blue-50 p-6 rounded-2xl border-2 border-blue-200 hover:border-blue-500 transition">
                           <div>
-                            <p className="font-semibold text-lg text-gray-900">{ind.indicator}</p>
+                            <p className="font-semibold text-lg text-gray-900">{ind.indicator_text}</p>
                             <p className="text-sm text-blue-600 font-medium">Scoring: {ind.scoring_method || "Yes/No"}</p>
                           </div>
                           <button
@@ -218,7 +219,7 @@ export default function IndicatorManagementPage() {
             </div>
             <div className="bg-white rounded-b-3xl shadow-2xl border-4 border-green-200 p-10">
               {PILLARS.map(pillar => {
-                const items = indicators.filter(i => i.sector === "waste" && i.thematicArea === pillar)
+                const items = indicators.filter(i => i.sector === "waste" && i.thematic_area === pillar)
                 if (items.length === 0) return null
                 return (
                   <div key={pillar} className="mb-12 last:mb-0">
@@ -229,7 +230,7 @@ export default function IndicatorManagementPage() {
                       {items.map(ind => (
                         <div key={ind.id} className="flex items-center justify-between bg-green-50 p-6 rounded-2xl border-2 border-green-200 hover:border-green-500 transition">
                           <div>
-                            <p className="font-semibold text-lg text-gray-900">{ind.indicator}</p>
+                            <p className="font-semibold text-lg text-gray-900">{ind.indicator_text}</p>
                             <p className="text-sm text-green-600 font-medium">Scoring: {ind.scoring_method || "Yes/No"}</p>
                           </div>
                           <button

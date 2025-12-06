@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/MainLayout";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { createThematicArea } from "@/lib/supabase-api";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -16,7 +16,7 @@ export default function AddThematicArea() {
 
   const mutation = useMutation({
     mutationFn: (payload: { name: string; description: string }) =>
-      api.createThematicArea(payload),
+      createThematicArea(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["thematicAreas"] });
       toast({ title: "Success", description: "Thematic area created successfully." });

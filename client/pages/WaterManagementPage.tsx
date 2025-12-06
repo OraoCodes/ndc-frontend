@@ -9,7 +9,7 @@ import { KenyaMap } from "@/components/kenya-map"
 import { CountyWaterTable } from "@/components/county-water-table"
 import { RegionalAnalysisChart } from "@/components/regional-analysis-chart"
 import { Loader2 } from "lucide-react"
-import { api, CountySummaryPerformance } from "@/lib/api"
+import { getCountySummaryPerformance, type CountySummaryPerformance } from "@/lib/supabase-api"
 
 interface RankedCounty extends CountySummaryPerformance {
   rank: number
@@ -29,7 +29,7 @@ export default function WaterManagement() {
         setLoading(true)
         setError(null)
 
-        const data = await api.getCountySummaryPerformance("water")
+        const data = await getCountySummaryPerformance("water")
 
         const rankedData: RankedCounty[] = data
           .map((item: any, index: number) => ({

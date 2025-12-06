@@ -2,23 +2,14 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "path";
-// import { handleDemo } from "./routes/demo.js"; // Note: Assuming this was .js or .ts
-import { setupDatabase } from "./db/setup.ts"; // FIX 1: Corrected filename and added .js extension
-import { createThematicAreasRoutes } from "./routes/thematicAreas.ts"; // FIX 2: Added .js extension
-import { createCountiesRoutes } from "./routes/counties.ts"; // FIX 3: Added .js extension
-import { createIndicatorsRoutes } from "./routes/indicator.ts"; // FIX 4: Added .js extension
-import { createSummaryRoutes } from "./routes/summary.ts" // FIX 5: Added .js extension
-import { createPublicationsRoutes } from "./routes/publications.ts";
-import authRouter from "./routes/auth.ts"; // FIX 6: Added .js extension
-import scoresRouter from "./routes/score.ts";
+// Note: Routes using SQLite have been removed as we've migrated to Supabase
+// Frontend now uses Supabase directly via client/lib/supabase-api.ts
 /**
  * Create and return an Express app wired with routes and middleware.
  * This function does NOT call `app.listen` so it can be used as middleware
  * (for example, mounted into Vite's dev server) or started standalone.
  */
 export async function createServer() {
-  // Ensure the import path is fully specified for module resolution
-  const db = await setupDatabase();
   const app = express();
 
   // Middleware
@@ -28,17 +19,8 @@ export async function createServer() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // API routes
-  app.use('/auth', authRouter); // New authentication routes
-  app.use("/thematic-areas", createThematicAreasRoutes(db));
-  app.use("/counties", createCountiesRoutes(db));
-  // The dynamic import already handles the extension well, but let's ensure consistency if possible.
-  // Assuming the publication route is defined in publications.js/ts and exported correctly.
-  app.use("/publications", createPublicationsRoutes(db));
-  app.use("/indicators", createIndicatorsRoutes(db))
-
-  app.use("/api/scores", scoresRouter);
-
-  app.use("/counties/summary-performance", createSummaryRoutes(db))
+  // Note: All data operations now use Supabase directly from the frontend
+  // These Express routes have been removed as part of the Supabase migration
   // Example API routes
   app.get("/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";

@@ -8,16 +8,20 @@ import { KenyaMap } from "@/components/kenya-map"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Link } from "react-router-dom"
-import { api, ThematicArea, CountySummaryPerformance } from "@/lib/api" // Import ThematicArea and CountySummaryPerformance interface
+import { listThematicAreas, listPublications, getCountySummaryPerformance, type ThematicArea, type CountySummaryPerformance } from "@/lib/supabase-api"
 
-// Placeholder for publications data type, adjust as needed
+// Publication interface matching database schema
 interface Publication {
-    image: string
     id: number;
     title: string;
-    date: string;
-    summary: string;
-
+    date: string | null;
+    summary: string | null;
+    filename: string;
+    storage_path?: string;
+    file_size?: number | null;
+    mime_type?: string | null;
+    created_at?: string;
+    updated_at?: string;
 }
 
 // 
@@ -46,9 +50,12 @@ export default function Home() {
     useEffect(() => {
         const fetchThematicAreas = async () => {
             try {
-                const data = await api.listThematicAreas();
-                setThematicAreas(data);
+                console.log('Fetching thematic areas...');
+                const data = await listThematicAreas();
+                console.log('Thematic areas fetched:', data);
+                setThematicAreas(data || []);
             } catch (error: any) {
+                console.error('Error fetching thematic areas:', error);
                 setErrorThematicAreas(error.message || "Failed to fetch thematic areas");
             } finally {
                 setLoadingThematicAreas(false);
@@ -57,9 +64,12 @@ export default function Home() {
 
         const fetchPublications = async () => {
             try {
-                const data = await api.listPublications();
-                setPublications(data);
+                console.log('Fetching publications...');
+                const data = await listPublications();
+                console.log('Publications fetched:', data);
+                setPublications(data || []);
             } catch (error: any) {
+                console.error('Error fetching publications:', error);
                 setErrorPublications(error.message || "Failed to fetch publications");
             } finally {
                 setLoadingPublications(false);
@@ -68,13 +78,16 @@ export default function Home() {
 
         const fetchSummaryData = async () => {
             try {
+                console.log('Fetching summary data...');
                 const [waterData, wasteData] = await Promise.all([
-                    api.getCountySummaryPerformance("water"),
-                    api.getCountySummaryPerformance("waste")
+                    getCountySummaryPerformance("water"),
+                    getCountySummaryPerformance("waste")
                 ])
-                setWaterSummaryData(waterData)
-                setWasteSummaryData(wasteData)
+                console.log('Summary data fetched:', { waterData, wasteData });
+                setWaterSummaryData(waterData || [])
+                setWasteSummaryData(wasteData || [])
             } catch (error: any) {
+                console.error('Error fetching summary data:', error);
                 setErrorSummaryData(error.message || "Failed to load county performance")
             } finally {
                 setLoadingSummaryData(false)
@@ -102,7 +115,8 @@ export default function Home() {
         .map((item, index) => ({
             ...item,
             rank: index + 1
-        }));
+        }))
+        .slice(0, 5); // Show only top 5 counties
 
     const getPerformanceBadge = (score: number) => {
         if (score >= 90) return { text: "Outstanding", color: "bg-green-600" }
@@ -275,6 +289,11 @@ export default function Home() {
                             <div>Loading publications...</div>
                         ) : errorPublications ? (
                             <div className="text-red-500">{errorPublications}</div>
+                        ) : publications.length === 0 ? (
+                            <div className="text-center py-12 text-gray-500">
+                                <p className="text-lg">No publications available yet.</p>
+                                <p className="text-sm mt-2">Check back later for updates.</p>
+                            </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                                 {publications.slice(0, 3).map((publication) => (
@@ -282,12 +301,6 @@ export default function Home() {
                                         key={publication.id}
                                         className="bg-white rounded-xl shadow-md border border-gray-100 p-4 flex flex-col"
                                     >
-                                        {/* Top Image */}
-                                        {/* <img
-                                            src={publication.image || "/placeholder-report.png"}
-                                            alt={publication.title}
-                                            className="w-full h-40 object-cover rounded-lg mb-4"
-                                        /> */}
 
                                         {/* Title */}
                                         <h3 className="text-gray-900 font-semibold text-base leading-snug mb-2">
@@ -295,13 +308,15 @@ export default function Home() {
                                         </h3>
 
                                         {/* Date */}
-                                        <p className="text-gray-500 text-sm mb-4">
-                                            {new Date(publication.date).toLocaleDateString(undefined, {
-                                                month: "short",
-                                                day: "numeric",
-                                                year: "numeric",
-                                            })}
-                                        </p>
+                                        {publication.date && (
+                                            <p className="text-gray-500 text-sm mb-4">
+                                                {new Date(publication.date).toLocaleDateString(undefined, {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    year: "numeric",
+                                                })}
+                                            </p>
+                                        )}
 
                                         {/* CTA */}
                                         <Link

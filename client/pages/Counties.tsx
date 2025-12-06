@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/MainLayout";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { listCounties, listThematicAreas } from "@/lib/supabase-api";
 
 const waterData = [
   { rank: 1, county: "Nairobi", wasteMgt: 11, avgScore: 21 },
@@ -98,8 +98,8 @@ const RankingTable = ({ title, data }: { title: string; data: Array<any> }) => (
 );
 
 export default function Counties() {
-  const { data: counties } = useQuery({ queryKey: ["counties"], queryFn: api.listCounties });
-  const { data: thematicAreas } = useQuery({ queryKey: ["thematicAreas"], queryFn: api.listThematicAreas });
+  const { data: counties } = useQuery({ queryKey: ["counties"], queryFn: listCounties });
+  const { data: thematicAreas } = useQuery({ queryKey: ["thematicAreas"], queryFn: listThematicAreas });
 
   const rows = (counties ?? []).map((c: any, idx: number) => ({
     rank: idx + 1,

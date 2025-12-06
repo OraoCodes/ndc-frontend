@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/MainLayout";
 import { CheckCircle, AlertCircle, Save } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { getCounty, createCounty, updateCounty, saveCountyPerformance } from "@/lib/supabase-api";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -70,7 +70,7 @@ export default function CountyData() {
 
   const { data: existingCounty } = useQuery({
     queryKey: ["county", editingId],
-    queryFn: () => editingId ? api.getCounty(editingId) : Promise.resolve(null),
+    queryFn: () => editingId ? getCounty(editingId) : Promise.resolve(null),
     enabled: !!editingId,
   });
 
@@ -132,30 +132,33 @@ export default function CountyData() {
 
       let countyId = editingId;
       if (!editingId) {
-        const res = await api.createCounty({ name: county, population: population || null });
+        const res = await createCounty({ name: county, population: population ? parseInt(population) : undefined });
         countyId = res.id;
       } else {
-        await api.updateCounty(editingId, { name: county, population: population || null });
+        await updateCounty(editingId, { name: county, population: population ? parseInt(population) : undefined });
       }
 
-      await fetch(`/api/counties/${countyId}/performance`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-    year: Number(year),
-    sector: "water", // or make it dynamic if you have both
-    overall_score: totalScore,
-    sector_score: totalScore,
-    governance: pillarScores.Governance,
-    mrv: pillarScores.MRV,
-    mitigation: pillarScores.Mitigation,
-    adaptation: pillarScores.Adaptation,
-    finance: pillarScores.Finance,
-    indicators: Object.fromEntries(
-      INDICATORS.map(i => [i.id, scores[i.id] || ""])
-    ),
-  }),
-      });
+      // Save county performance using Supabase
+      const indicatorsJson = Object.fromEntries(
+        INDICATORS.map(i => [i.id, scores[i.id] || ""])
+      );
+
+      // Save for water sector (you may want to make this dynamic)
+      await saveCountyPerformance(
+        countyId,
+        Number(year),
+        "water",
+        {
+          overall_score: totalScore,
+          sector_score: totalScore,
+          governance: pillarScores.Governance,
+          mrv: pillarScores.MRV,
+          mitigation: pillarScores.Mitigation,
+          adaptation: pillarScores.Adaptation,
+          finance: pillarScores.Finance,
+          indicators_json: indicatorsJson,
+        }
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries();

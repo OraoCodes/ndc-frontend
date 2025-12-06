@@ -1,5 +1,4 @@
-ignoredBuiltDependencies:
-  - sqlite3
+ignoredBuiltDependencies: []
 
 onlyBuiltDependencies:
   - '@swc/core'

@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/MainLayout";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type County } from "@/lib/api";
+import { listCounties, deleteCounty, type County } from "@/lib/supabase-api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CountiesList() {
@@ -12,11 +12,11 @@ export default function CountiesList() {
 
   const { data, isLoading, isError, error } = useQuery<County[]>({
     queryKey: ["counties"],
-    queryFn: api.listCounties,
+    queryFn: listCounties,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.deleteCounty(id),
+    mutationFn: (id: number) => deleteCounty(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["counties"] });
       toast({ title: "Success", description: "County deleted successfully." });

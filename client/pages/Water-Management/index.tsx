@@ -101,10 +101,15 @@ export default function CountyWaterPage() {
     useEffect(() => {
         async function fetchData() {
             try {
-                const res = await fetch(
-                    `/api/counties/${encodeURIComponent(countyName)}/performance?year=${year}`
-                )
-                const json = res.ok ? await res.json() : {}
+                // Use Supabase directly
+                const { getCountyPerformance } = await import("@/lib/supabase-api");
+                const raw = await getCountyPerformance(countyName, parseInt(year));
+                const json = {
+                    waterScore: raw.waterScore || "0",
+                    wasteScore: raw.wasteScore || "0",
+                    overallScore: raw.overallScore || "0",
+                    indicators: raw.indicators || {},
+                };
 
                 const waterScore = Number(json.waterScore || 0).toFixed(1)
                 // const wasteScore = Number(json.wasteScore || 0).toFixed(1)
