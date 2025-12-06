@@ -25,3 +25,6 @@ dist-ssr
 
 .config/
 !.env
+
+# Ignore all markdown documentation files
+*.md
