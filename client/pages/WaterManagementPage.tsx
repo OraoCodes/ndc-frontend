@@ -33,15 +33,15 @@ export default function WaterManagement() {
 
         const rankedData: RankedCounty[] = data
           .map((item: any, index: number) => ({
-            rank: index + 1,
-            county: item.county_name || item.county?.name || "Unknown County",
+            rank: item.rank || index + 1,
+            county: item.name || item.county_name || item.county?.name || "Unknown County",
             governance: Number(item.governance || 0),
             mrv: Number(item.mrv || 0),
             mitigation: Number(item.mitigation || 0),
-            adaptation: Number(item.adaptation_resilience || item.adaptation || 0),
+            adaptation: Number(item.adaptation || item.adaptation_resilience || 0),
             finance: Number(item.finance || 0),
-            indexScore: Math.round(Number(item.total_score || 0)),
-            performance: getPerformanceLabel(Number(item.total_score || 0)),
+            indexScore: Math.round(Number(item.score || item.sector_score || item.total_score || 0)),
+            performance: getPerformanceLabel(Number(item.score || item.sector_score || item.total_score || 0)),
           }))
           .sort((a, b) => b.indexScore - a.indexScore) // ensure correct rank order
 
