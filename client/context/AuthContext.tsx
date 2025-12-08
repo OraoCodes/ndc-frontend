@@ -33,14 +33,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Initialize auth state and listen for changes
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error);
+        setUser(null);
+        setIsAuthenticated(false);
+        setLoading(false);
+        return;
+      }
+      
       setSession(session);
       if (session?.user) {
-        loadUserProfile(session.user.id);
+        await loadUserProfile(session.user.id);
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        setLoading(false);
       }
+    }).catch((error) => {
+      console.error('Error in getSession:', error);
+      setUser(null);
+      setIsAuthenticated(false);
       setLoading(false);
     });
 
@@ -49,10 +62,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       async (_event, session) => {
         setSession(session);
         if (session?.user) {
+          setLoading(true);
           await loadUserProfile(session.user.id);
         } else {
           setUser(null);
           setIsAuthenticated(false);
+          setLoading(false);
         }
       }
     );
@@ -107,12 +122,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 email: authUser.email || '',
                 role: 'user',
               });
+              setIsAuthenticated(true);
+              setLoading(false);
             } else {
               // Profile created, reload it
               await loadUserProfile(userId);
               return;
             }
+          } else {
+            // No auth user, can't authenticate
+            setUser(null);
+            setIsAuthenticated(false);
+            setLoading(false);
           }
+          return;
         } else {
           console.error('Error loading user profile:', error);
           // For other errors, use auth user as fallback
@@ -124,10 +147,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               email: authUser.email || '',
               role: 'user',
             });
+            setIsAuthenticated(true);
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
           }
+          setLoading(false);
+          return;
         }
-        setIsAuthenticated(true);
-        return;
       }
 
       if (profile) {
@@ -141,7 +168,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           position: profile.position || undefined,
         });
         setIsAuthenticated(true);
+      } else {
+        // No profile found and couldn't create one
+        setUser(null);
+        setIsAuthenticated(false);
       }
+      setLoading(false);
     } catch (error) {
       console.error('Error loading user profile:', error);
       // Fallback to auth user
@@ -154,7 +186,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           role: 'user',
         });
         setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
       }
+      setLoading(false);
     }
   };
 

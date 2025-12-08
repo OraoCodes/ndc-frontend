@@ -4,13 +4,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listPublications, downloadPublication, createPublication } from "@/lib/supabase-api";
 import { supabase } from "@/lib/supabase";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import * as pdfjsLib from "pdfjs-dist";
 
-// Set worker (important!)
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Set worker - use unpkg CDN which is more reliable
+// Fallback to local worker if CDN fails
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
 
 export default function Publications() {
     const qc = useQueryClient();
+    const { toast } = useToast();
     const { data: publications, isLoading } = useQuery({
         queryKey: ["publications"],
         queryFn: listPublications,
@@ -20,6 +23,24 @@ export default function Publications() {
 
     const uploadMutation = useMutation({
         mutationFn: async (payload: { title: string; filename: string; date?: string; summary?: string; contentBase64: string }) => {
+            // Check if a publication with the same filename already exists
+            const { data: existingPub, error: checkError } = await supabase
+                .from('publications')
+                .select('id, filename, title')
+                .eq('filename', payload.filename)
+                .maybeSingle();
+
+            if (checkError && checkError.code !== 'PGRST116') {
+                // PGRST116 = no rows found (which is OK), other errors should be thrown
+                throw checkError;
+            }
+
+            if (existingPub) {
+                const error = new Error(`A publication with the filename "${payload.filename}" already exists.`);
+                (error as any).code = 'DUPLICATE_FILENAME';
+                throw error;
+            }
+
             // Upload file to Supabase Storage
             const filePath = `publications/${Date.now()}_${payload.filename}`;
             const fileBlob = Uint8Array.from(atob(payload.contentBase64), c => c.charCodeAt(0));
@@ -31,7 +52,15 @@ export default function Publications() {
                     upsert: false
                 });
 
-            if (uploadError) throw uploadError;
+            if (uploadError) {
+                // Check if it's a duplicate file error from storage
+                if (uploadError.message?.includes('already exists') || uploadError.statusCode === '409') {
+                    const error = new Error(`A file with the name "${payload.filename}" already exists in storage.`);
+                    (error as any).code = 'DUPLICATE_STORAGE';
+                    throw error;
+                }
+                throw uploadError;
+            }
 
             // Create publication record in database
             const { data: pubData, error: dbError } = await supabase
@@ -53,6 +82,25 @@ export default function Publications() {
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["publications"] });
+            toast({
+                title: "Success",
+                description: "Publication uploaded successfully.",
+            });
+        },
+        onError: (err: any) => {
+            let errorMessage = "Failed to upload publication. Please try again.";
+            
+            if (err?.code === 'DUPLICATE_FILENAME' || err?.code === 'DUPLICATE_STORAGE') {
+                errorMessage = err.message;
+            } else if (err?.message) {
+                errorMessage = err.message;
+            }
+
+            toast({
+                title: "Upload Failed",
+                description: errorMessage,
+                variant: "destructive",
+            });
         },
     });
 
@@ -85,7 +133,11 @@ export default function Publications() {
     const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !file.type.includes("pdf")) {
-            alert("Please upload a PDF file");
+            toast({
+                title: "Invalid File",
+                description: "Please upload a PDF file.",
+                variant: "destructive",
+            });
             return;
         }
 
@@ -109,7 +161,8 @@ export default function Publications() {
             };
             reader.readAsDataURL(file);
         } catch (err) {
-            alert("Upload failed");
+            // Error is already handled by mutation's onError handler
+            console.error("Upload error:", err);
         } finally {
             setUploading(false);
             e.target.value = "";
