@@ -32,8 +32,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Initialize auth state and listen for changes
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout;
+    
+    // Set a timeout to prevent infinite loading
+    timeoutId = setTimeout(() => {
+      if (isMounted && loading) {
+        console.warn('Auth loading timeout - setting loading to false');
+        setLoading(false);
+      }
+    }, 10000); // 10 second timeout
+    
     // Get initial session
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (!isMounted) return;
+      
+      clearTimeout(timeoutId);
+      
       if (error) {
         console.error('Error getting session:', error);
         setUser(null);
@@ -51,11 +66,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setLoading(false);
       }
     }).catch((error) => {
+      if (!isMounted) return;
+      clearTimeout(timeoutId);
       console.error('Error in getSession:', error);
       setUser(null);
       setIsAuthenticated(false);
       setLoading(false);
     });
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

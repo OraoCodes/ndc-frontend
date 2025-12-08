@@ -20,13 +20,21 @@ export interface County {
 }
 
 export async function listCounties(): Promise<County[]> {
-  const { data, error } = await supabase
-    .from('counties')
-    .select('*')
-    .order('name');
+  try {
+    const { data, error } = await supabase
+      .from('counties')
+      .select('*')
+      .order('name');
 
-  if (error) throw error;
-  return data || [];
+    if (error) {
+      console.error('Error fetching counties:', error);
+      throw error;
+    }
+    return data || [];
+  } catch (err) {
+    console.error('listCounties failed:', err);
+    throw err;
+  }
 }
 
 export async function getCounty(id: number): Promise<County | null> {
@@ -349,6 +357,31 @@ export async function getCountyPerformance(
   };
 }
 
+export async function getCountyPerformanceByCountyId(
+  countyId: number,
+  year: number,
+  sector: 'water' | 'waste'
+): Promise<CountyPerformance | null> {
+  const { data, error } = await supabase
+    .from('county_performance')
+    .select('*')
+    .eq('county_id', countyId)
+    .eq('year', year)
+    .eq('sector', sector)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // No rows returned
+      return null;
+    }
+    console.error('Error fetching county performance:', error);
+    throw error;
+  }
+
+  return data;
+}
+
 export async function saveCountyPerformance(
   countyId: number,
   year: number,
@@ -364,25 +397,50 @@ export async function saveCountyPerformance(
     indicators_json?: any;
   }
 ): Promise<void> {
-  const { error } = await supabase
-    .from('county_performance')
-    .upsert({
-      county_id: countyId,
-      year,
-      sector,
-      overall_score: performanceData.overall_score,
-      sector_score: performanceData.sector_score,
-      governance: performanceData.governance,
-      mrv: performanceData.mrv,
-      mitigation: performanceData.mitigation,
-      adaptation: performanceData.adaptation,
-      finance: performanceData.finance,
-      indicators_json: performanceData.indicators_json || null,
-    }, {
-      onConflict: 'county_id,year,sector'
-    });
+  try {
+    // Validate inputs
+    if (!countyId || !year || !sector) {
+      throw new Error('Missing required fields: countyId, year, or sector');
+    }
 
-  if (error) throw error;
+    if (!['water', 'waste'].includes(sector)) {
+      throw new Error(`Invalid sector: ${sector}. Must be 'water' or 'waste'`);
+    }
+
+    const payload = {
+      county_id: countyId,
+      year: Number(year),
+      sector,
+      overall_score: Number(performanceData.overall_score) || 0,
+      sector_score: Number(performanceData.sector_score) || 0,
+      governance: Number(performanceData.governance) || 0,
+      mrv: Number(performanceData.mrv) || 0,
+      mitigation: Number(performanceData.mitigation) || 0,
+      adaptation: Number(performanceData.adaptation) || 0,
+      finance: Number(performanceData.finance) || 0,
+      indicators_json: performanceData.indicators_json || null,
+    };
+
+    console.log('Saving county performance:', payload);
+
+    const { data, error } = await supabase
+      .from('county_performance')
+      .upsert(payload, {
+        onConflict: 'county_id,year,sector'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error saving county performance:', error);
+      throw error;
+    }
+
+    console.log('Successfully saved county performance:', data);
+  } catch (err: any) {
+    console.error('Error in saveCountyPerformance:', err);
+    throw err;
+  }
 }
 
 // ============================================================================
@@ -490,15 +548,23 @@ export interface Indicator {
 }
 
 export async function listIndicators(): Promise<Indicator[]> {
-  const { data, error } = await supabase
-    .from('indicators')
-    .select('*')
-    .order('sector')
-    .order('thematic_area')
-    .order('id');
+  try {
+    const { data, error } = await supabase
+      .from('indicators')
+      .select('*')
+      .order('sector')
+      .order('thematic_area')
+      .order('id');
 
-  if (error) throw error;
-  return data || [];
+    if (error) {
+      console.error('Error fetching indicators:', error);
+      throw error;
+    }
+    return data || [];
+  } catch (err) {
+    console.error('listIndicators failed:', err);
+    throw err;
+  }
 }
 
 export async function createIndicator(payload: {

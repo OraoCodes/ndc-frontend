@@ -33,7 +33,15 @@ import CountyWaterPage from "./pages/Water-Management";
 import CountyWastePage from "./pages/Waste-Management";
 import AboutToolPage from "./pages/AboutToolPage";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 export const App = () => (
   <QueryClientProvider client={queryClient}>

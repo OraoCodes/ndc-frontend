@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react"
 import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react"
 import { MainLayout } from "@/components/MainLayout"
+import { listIndicators, createIndicator, deleteIndicator } from "@/lib/supabase-api"
+import { useToast } from "@/hooks/use-toast"
 
 interface Indicator {
   id: number
@@ -21,7 +23,23 @@ const PILLARS = [
   "Finance & Resource Mobilization"
 ] as const
 
+// Helper function to map form data to API format
+function mapIndicatorForSave(formData: {
+  sector: "water" | "waste";
+  thematicArea: string;
+  indicator: string;
+  scoring_method?: string;
+}) {
+  return {
+    sector: formData.sector,
+    thematic_area: formData.thematicArea,
+    indicator_text: formData.indicator.trim(),
+    weight: 10, // Default weight
+  };
+}
+
 export default function IndicatorManagementPage() {
+  const { toast } = useToast();
   const [indicators, setIndicators] = useState<Indicator[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -35,47 +53,85 @@ export default function IndicatorManagementPage() {
   })
 
   useEffect(() => {
-    fetch("/api/indicators")
-      .then(r => r.json())
-      .then(data => {
-        console.log("Fetched indicators:", data) // ← You will see your 63 items here
-        setIndicators(Array.isArray(data) ? data : [])
-        setLoading(false)
-      })
-      .catch(err => {
-        console.error(err)
-        setIndicators([])
-        setLoading(false)
-      })
-  }, [])
+    let isMounted = true;
+    const loadIndicators = async () => {
+      try {
+        const data = await listIndicators();
+        console.log("Fetched indicators:", data);
+        if (isMounted) {
+          setIndicators(Array.isArray(data) ? data : []);
+        }
+      } catch (err: any) {
+        console.error("Error loading indicators:", err);
+        if (isMounted) {
+          toast({
+            title: "Error",
+            description: err?.message || "Failed to load indicators. Please try again.",
+            variant: "destructive",
+          });
+          setIndicators([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadIndicators();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [toast])
 
   const handleAdd = async () => {
-    if (!newIndicator.indicator.trim()) return setMessage("Enter indicator text")
+    if (!newIndicator.indicator.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter indicator text",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSaving(true)
     try {
-      const { createIndicator } = await import("@/lib/supabase-api");
       const added = await createIndicator(mapIndicatorForSave(newIndicator));
       setIndicators(prev => [...prev, added as any]);
       setNewIndicator({ sector: "waste", thematicArea: "Governance", indicator: "", scoring_method: "Yes/No" });
-      setMessage("Indicator added!");
+      toast({
+        title: "Success",
+        description: "Indicator added successfully!",
+      });
     } catch (err: any) {
-      setMessage(err?.message || "Failed");
+      const errorMessage = err?.message || "Failed to add indicator";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
-      setTimeout(() => setMessage(""), 3000);
     }
   }
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete permanently?")) return;
     try {
-      const { deleteIndicator } = await import("@/lib/supabase-api");
       await deleteIndicator(id);
       setIndicators(prev => prev.filter(i => i.id !== id));
+      toast({
+        title: "Success",
+        description: "Indicator deleted successfully!",
+      });
     } catch (err) {
       console.error("Failed to delete indicator:", err);
-      alert("Failed to delete indicator. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to delete indicator. Please try again.",
+        variant: "destructive",
+      });
     }
   }
 

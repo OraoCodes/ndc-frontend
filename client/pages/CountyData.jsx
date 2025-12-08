@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/MainLayout";
 import { CheckCircle, AlertCircle, Save } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { getCounty, createCounty, updateCounty, saveCountyPerformance } from "@/lib/supabase-api";
+import { getCounty, createCounty, updateCounty, saveCountyPerformance, getCountyPerformanceByCountyId } from "@/lib/supabase-api";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -60,6 +60,7 @@ export default function CountyData() {
   const [county, setCounty] = useState("");
   const [year, setYear] = useState("2025");
   const [population, setPopulation] = useState("");
+  const [sector, setSector] = useState("water");
   const [scores, setScores] = useState({});
 
   const queryClient = useQueryClient();
@@ -73,6 +74,42 @@ export default function CountyData() {
     queryFn: () => editingId ? getCounty(editingId) : Promise.resolve(null),
     enabled: !!editingId,
   });
+
+  // Load saved performance data when editing or when sector/year changes
+  useEffect(() => {
+    const loadPerformanceData = async () => {
+      // Only load if we have a county ID (editing mode) and valid year/sector
+      if (!editingId || !year || !sector) {
+        // If not in editing mode, clear scores
+        if (!editingId) {
+          setScores({});
+        }
+        return;
+      }
+
+      try {
+        const performance = await getCountyPerformanceByCountyId(
+          editingId,
+          Number(year),
+          sector
+        );
+
+        if (performance && performance.indicators_json) {
+          // Load saved indicators into scores state
+          setScores(performance.indicators_json || {});
+        } else {
+          // No saved data for this sector/year, clear scores
+          setScores({});
+        }
+      } catch (err) {
+        console.error("Error loading performance data:", err);
+        // If there's an error, just clear scores
+        setScores({});
+      }
+    };
+
+    loadPerformanceData();
+  }, [editingId, year, sector]);
 
   useEffect(() => {
     if (existingCounty) {
@@ -128,44 +165,112 @@ export default function CountyData() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!county || !year) throw new Error("County name and year required");
-
-      let countyId = editingId;
-      if (!editingId) {
-        const res = await createCounty({ name: county, population: population ? parseInt(population) : undefined });
-        countyId = res.id;
-      } else {
-        await updateCounty(editingId, { name: county, population: population ? parseInt(population) : undefined });
+      if (!county || !year) {
+        throw new Error("County name and year are required");
       }
 
-      // Save county performance using Supabase
+      if (!county.trim()) {
+        throw new Error("Please enter a county name");
+      }
+
+      let countyId = editingId;
+      
+      // Create or update county
+      if (!editingId) {
+        try {
+          const res = await createCounty({ 
+            name: county.trim(), 
+            population: population ? parseInt(population) : undefined 
+          });
+          countyId = res.id;
+        } catch (err) {
+          // If county already exists, try to find it
+          const error = err || {};
+          if (error?.code === '23505' || error?.message?.includes('duplicate') || error?.message?.includes('unique')) {
+            const { listCounties } = await import("@/lib/supabase-api");
+            const counties = await listCounties();
+            const existing = counties.find(c => c.name.toLowerCase() === county.trim().toLowerCase());
+            if (existing) {
+              countyId = existing.id;
+              // Update population if provided
+              if (population) {
+                await updateCounty(existing.id, { 
+                  name: existing.name, 
+                  population: parseInt(population) 
+                });
+              }
+            } else {
+              throw new Error("County name already exists. Please use a different name or edit the existing county.");
+            }
+          } else {
+            throw err;
+          }
+        }
+      } else {
+        await updateCounty(editingId, { 
+          name: county.trim(), 
+          population: population ? parseInt(population) : undefined 
+        });
+      }
+
+      // Prepare indicators JSON
       const indicatorsJson = Object.fromEntries(
         INDICATORS.map(i => [i.id, scores[i.id] || ""])
       );
 
-      // Save for water sector (you may want to make this dynamic)
-      await saveCountyPerformance(
-        countyId,
-        Number(year),
-        "water",
-        {
-          overall_score: totalScore,
-          sector_score: totalScore,
-          governance: pillarScores.Governance,
-          mrv: pillarScores.MRV,
-          mitigation: pillarScores.Mitigation,
-          adaptation: pillarScores.Adaptation,
-          finance: pillarScores.Finance,
-          indicators_json: indicatorsJson,
-        }
-      );
+      // Save county performance for the selected sector
+      try {
+        await saveCountyPerformance(
+          countyId,
+          Number(year),
+          sector,
+          {
+            overall_score: totalScore,
+            sector_score: totalScore,
+            governance: pillarScores.Governance,
+            mrv: pillarScores.MRV,
+            mitigation: pillarScores.Mitigation,
+            adaptation: pillarScores.Adaptation,
+            finance: pillarScores.Finance,
+            indicators_json: indicatorsJson,
+          }
+        );
+        
+        console.log("Successfully saved performance data:", {
+          countyId,
+          year: Number(year),
+          sector,
+          totalScore,
+          pillarScores
+        });
+      } catch (err) {
+        console.error("Error saving county performance:", err);
+        const errorMessage = err?.message || err?.toString() || 'Unknown error';
+        throw new Error(`Failed to save performance data: ${errorMessage}`);
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries();
-      toast({ title: "Success", description: "NDC Index data saved!" });
-      navigate("/counties-list");
+      queryClient.invalidateQueries({ queryKey: ["counties"] });
+      queryClient.invalidateQueries({ queryKey: ["county"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      toast({ 
+        title: "Success", 
+        description: `NDC Index data saved for ${sector} sector!` 
+      });
+      // Small delay before navigation to ensure toast is visible
+      setTimeout(() => {
+        navigate("/counties-list");
+      }, 1000);
     },
-    onError: (err) => toast({ title: "Error", description: err.message }),
+    onError: (err) => {
+      console.error("Save mutation error:", err);
+      const errorMessage = err?.message || err?.toString() || "Failed to save data. Please try again.";
+      toast({ 
+        title: "Error", 
+        description: errorMessage,
+        variant: "destructive"
+      });
+    },
   });
 
   return (
@@ -179,37 +284,60 @@ export default function CountyData() {
         </div>
 
         {/* County Info */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           <div>
-            <label className="block text-sm font-medium">County</label>
+            <label className="block text-sm font-medium mb-1">County *</label>
             <input
               type="text"
               value={county}
               onChange={(e) => setCounty(e.target.value)}
-              className="mt-1 w-full px-4 py-3 border rounded-lg"
+              className="mt-1 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
               placeholder="e.g. Kisumu"
+              required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium">Year</label>
-            <select value={year} onChange={(e) => setYear(e.target.value)} className="mt-1 w-full px-4 py-3 border rounded-lg">
-              {[2025, 2024, 2023].map(y => (
+            <label className="block text-sm font-medium mb-1">Year *</label>
+            <select 
+              value={year} 
+              onChange={(e) => setYear(e.target.value)} 
+              className="mt-1 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+            >
+              {[2025, 2024, 2023, 2022, 2021].map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium">Population (2025 est.)</label>
+            <label className="block text-sm font-medium mb-1">Sector *</label>
+            <select 
+              value={sector} 
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "water" || value === "waste") {
+                  setSector(value);
+                }
+              }} 
+              className="mt-1 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+            >
+              <option value="water">Water</option>
+              <option value="waste">Waste</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Population (optional)</label>
             <input
               type="number"
               value={population}
               onChange={(e) => setPopulation(e.target.value)}
-              className="mt-1 w-full px-4 py-3 border rounded-lg"
+              className="mt-1 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+              placeholder="e.g. 1200000"
+              min="0"
             />
           </div>
           <div className="flex items-end">
             <div className={`w-full text-center py-4 rounded-lg font-bold text-2xl ${rating.color}`}>
-              {totalScore} / 100 — {rating.label}
+              {totalScore.toFixed(1)} / 100 — {rating.label}
             </div>
           </div>
         </div>
@@ -294,15 +422,20 @@ export default function CountyData() {
           );
         })}
 
-        <div className="flex justify-center pt-8">
+        <div className="flex justify-center pt-8 gap-4">
           <button
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !county}
-            className="flex items-center gap-3 px-10 py-4 bg-blue-500 text-white text-lg rounded-xl hover:shadow-lg disabled:opacity-50 transition"
+            disabled={saveMutation.isPending || !county || !year}
+            className="flex items-center gap-3 px-10 py-4 bg-blue-500 text-white text-lg rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition font-semibold"
           >
-            
-            {saveMutation.isPending ? "Saving..." : "Save NDC Index Data"}
+            <Save size={20} />
+            {saveMutation.isPending ? "Saving..." : `Save ${sector.charAt(0).toUpperCase() + sector.slice(1)} Sector Data`}
           </button>
+          {saveMutation.isPending && (
+            <div className="flex items-center text-muted-foreground">
+              <span className="animate-pulse">Saving to database...</span>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

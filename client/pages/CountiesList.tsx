@@ -12,7 +12,21 @@ export default function CountiesList() {
 
   const { data, isLoading, isError, error } = useQuery<County[]>({
     queryKey: ["counties"],
-    queryFn: listCounties,
+    queryFn: async () => {
+      try {
+        return await listCounties();
+      } catch (err: any) {
+        console.error('CountiesList query error:', err);
+        toast({
+          title: "Error",
+          description: err?.message || "Failed to load counties. Please check your connection.",
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   const deleteMutation = useMutation({

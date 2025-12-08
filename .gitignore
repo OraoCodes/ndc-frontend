@@ -26,5 +26,10 @@ dist-ssr
 .config/
 !.env
 
+# Database files (SQLite - no longer used, migrated to Supabase)
+*.db
+*.db-shm
+*.db-wal
+
 # Ignore all markdown documentation files
 *.md

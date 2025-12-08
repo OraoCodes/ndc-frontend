@@ -2,32 +2,25 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "path";
-// Note: Routes using SQLite have been removed as we've migrated to Supabase
-// Frontend now uses Supabase directly via client/lib/supabase-api.ts
+
 /**
- * Create and return an Express app wired with routes and middleware.
- * This function does NOT call `app.listen` so it can be used as middleware
- * (for example, mounted into Vite's dev server) or started standalone.
+ * Create and return an Express app for serving the SPA.
+ * All data operations use Supabase directly from the frontend via client/lib/supabase-api.ts
+ * This server only handles static file serving in production.
  */
 export async function createServer() {
   const app = express();
 
   // Middleware
   app.use(cors());
-  // Increase body size limits so base64 file uploads (small-to-medium) are accepted.
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // API routes
-  // Note: All data operations now use Supabase directly from the frontend
-  // These Express routes have been removed as part of the Supabase migration
-  // Example API routes
+  // Health check endpoint
   app.get("/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";
     res.json({ message: ping });
   });
-
-  // app.get("/demo", handleDemo);
 
   // In production the built SPA can be served from the `spa` folder.
   if (process.env.NODE_ENV === "production") {
