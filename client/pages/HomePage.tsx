@@ -125,6 +125,22 @@ export default function Home() {
         return { text: "Needs Improvement", color: "bg-orange-500 text-black" }
     }
 
+    // Map thematic area names from database to their route paths
+    const getThematicAreaRoute = (areaName: string): string => {
+        const routeMap: Record<string, string> = {
+            'Governance': '/governance',
+            'MRV': '/mrv',
+            'Mitigation': '/mitigation',
+            'Adaptation & Resilience': '/adaptation',
+            'Adaptation': '/adaptation',
+            'Finance & Resource Mobilization': '/finance-technology-transfer',
+            'Finance & Technology Transfer': '/finance-technology-transfer',
+        };
+        
+        // Return mapped route or fallback to a safe default
+        return routeMap[areaName] || '/';
+    }
+
     //     const getCountyName = (item: CountySummaryPerformance) => {
     //     return item.name || item.county || item.county_name || "Unknown County"
     //   }
@@ -261,7 +277,7 @@ export default function Home() {
                                 {thematicAreas.map((area) => (
                                     <Link
                                         key={area.id}
-                                        to={`/${area.name}`} // Assuming a thematic area detail page exists
+                                        to={getThematicAreaRoute(area.name)}
                                         className="block group"
                                     >
                                         <div className="flex items-center justify-between px-8 py-6 bg-white border border-gray-200 rounded-2xl 

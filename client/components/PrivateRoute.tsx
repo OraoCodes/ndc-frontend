@@ -1,24 +1,26 @@
-import React, { ReactNode } from 'react';
+import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-// interface PrivateRouteProps {
-//   children: ReactNode;
-// }
 
 const PrivateRoute: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    // Optionally render a loading spinner or placeholder
-    return <div>Loading...</div>;
+    // Show loading state while checking authentication
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
+    // Redirect to login if not authenticated
     return <Navigate to="/login" replace />;
   }
 
-  return <>{Outlet}</>;
+  // Render child routes if authenticated
+  return <Outlet />;
 };
 
 export default PrivateRoute;

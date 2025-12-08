@@ -5,7 +5,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { HeroBanner } from "@/components/hero-banner"
 
-const mrvData = [
+const adaptationData = [
     { rank: 1, county: "Nairobi", water: 18, wasteMgt: 16, avgScore: 34, performance: "Outstanding" },
     { rank: 2, county: "Mombasa", water: 17, wasteMgt: 15, avgScore: 32, performance: "Outstanding" },
     { rank: 3, county: "Kisumu", water: 15, wasteMgt: 14, avgScore: 29, performance: "Satisfactory" },
@@ -76,7 +76,7 @@ export default function Adaptation() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {mrvData.map((row) => (
+                                            {adaptationData.map((row) => (
                                                 <tr key={row.rank} className="border-b hover:bg-slate-50">
                                                     <td className="px-4 py-3 font-medium">{row.rank}</td>
                                                     <td className="px-4 py-3">

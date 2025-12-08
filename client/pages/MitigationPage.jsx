@@ -5,7 +5,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { HeroBanner } from "@/components/hero-banner"
 
-const mrvData = [
+const mitigationData = [
     { rank: 1, county: "Nairobi", water: 18, wasteMgt: 16, avgScore: 34, performance: "Outstanding" },
     { rank: 2, county: "Mombasa", water: 17, wasteMgt: 15, avgScore: 32, performance: "Outstanding" },
     { rank: 3, county: "Kisumu", water: 15, wasteMgt: 14, avgScore: 29, performance: "Satisfactory" },
@@ -43,7 +43,7 @@ const CardView = ({ data }) => (
 export default function Mitigation() {
     return (
         <main>
-            <Header currentPage="mrv" />
+            <Header currentPage="mitigation" />
 
             <HeroBanner
                 title="Mitigation"
@@ -76,7 +76,7 @@ export default function Mitigation() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {mrvData.map((row) => (
+                                            {mitigationData.map((row) => (
                                                 <tr key={row.rank} className="border-b hover:bg-slate-50">
                                                     <td className="px-4 py-3 font-medium">{row.rank}</td>
                                                     <td className="px-4 py-3">

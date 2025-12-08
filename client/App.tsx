@@ -59,18 +59,18 @@ export const App = () => (
             <Route path="/mitigation" element={<Mitigation />} />
             <Route path="/adaptation" element={<Adaptation />} />
             <Route path="/finance-technology-transfer" element={<FinanceTechnologyTransfer />} />
-            <Route path="/dashboard" element={<Index />} />
-            <Route path="/counties-list" element={<CountiesList />} />
-            <Route path="/county-data" element={<CountyData />} />
-            <Route path="/indicators" element={<CountyScoringPage />} />
-            <Route path="/publications" element={<Publications />} />
             <Route path="/about-the-tool" element={<AboutToolPage />} />
-            <Route path="/thematic-areas" element={<ThematicAreas />} />
-            <Route path="/thematic-areas/add" element={<AddThematicArea />} />
 
-            {/* Protected Routes */}
+            {/* Protected Routes - Require Authentication */}
             <Route element={<PrivateRoute />}>
+              <Route path="/dashboard" element={<Index />} />
               <Route path="/counties" element={<Counties />} />
+              <Route path="/counties-list" element={<CountiesList />} />
+              <Route path="/county-data" element={<CountyData />} />
+              <Route path="/indicators" element={<CountyScoringPage />} />
+              <Route path="/publications" element={<Publications />} />
+              <Route path="/thematic-areas" element={<ThematicAreas />} />
+              <Route path="/thematic-areas/add" element={<AddThematicArea />} />
 
 
 
