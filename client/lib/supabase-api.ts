@@ -152,6 +152,24 @@ export async function createThematicArea(payload: { name: string; description?: 
   return data;
 }
 
+export async function updateThematicArea(
+  id: number,
+  payload: { name: string; description?: string }
+): Promise<ThematicArea> {
+  const { data, error } = await supabase
+    .from('thematic_areas')
+    .update({
+      name: payload.name,
+      description: payload.description || null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteThematicArea(id: number): Promise<void> {
   const { error } = await supabase
     .from('thematic_areas')

@@ -1,12 +1,25 @@
 import { MainLayout } from "@/components/MainLayout";
-import { Plus } from "lucide-react";
+import { Plus, Edit } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listThematicAreas, deleteThematicArea, type ThematicArea } from "@/lib/supabase-api";
+import { listThematicAreas, deleteThematicArea, updateThematicArea, type ThematicArea } from "@/lib/supabase-api";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export default function ThematicAreas() {
   const navigate = useNavigate();
+  const [editingItem, setEditingItem] = useState<ThematicArea | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   const { data, isLoading, isError, error } = useQuery<ThematicArea[]>({
     queryKey: ["thematicAreas"],
@@ -26,6 +39,40 @@ export default function ThematicAreas() {
       toast({ title: "Error", description: err?.message ?? "Failed to delete" });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: { id: number; name: string; description?: string }) =>
+      updateThematicArea(payload.id, { name: payload.name, description: payload.description }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["thematicAreas"] });
+      toast({ title: "Success", description: "Thematic area updated successfully." });
+      setEditingItem(null);
+      setEditName("");
+      setEditDescription("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.message ?? "Failed to update thematic area", variant: "destructive" });
+    },
+  });
+
+  const handleEditClick = (item: ThematicArea) => {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditDescription(item.description || "");
+  };
+
+  const handleSaveEdit = () => {
+    if (!editName.trim()) {
+      toast({ title: "Error", description: "Name is required", variant: "destructive" });
+      return;
+    }
+    if (!editingItem) return;
+    updateMutation.mutate({
+      id: editingItem.id,
+      name: editName.trim(),
+      description: editDescription.trim() || undefined,
+    });
+  };
 
   return (
     <MainLayout>
@@ -73,9 +120,10 @@ export default function ThematicAreas() {
                     <td className="py-4 px-6 text-sm">
                       <div className="flex items-center gap-4">
                         <button
-                          onClick={() => toast({ title: "Not implemented", description: "Edit feature not implemented yet." })}
-                          className="text-primary hover:text-primary/80 transition-colors font-medium"
+                          onClick={() => handleEditClick(row)}
+                          className="text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
                         >
+                          <Edit size={16} />
                           Edit
                         </button>
                         <button
@@ -101,6 +149,63 @@ export default function ThematicAreas() {
             </table>
           </div>
         </div>
+
+        {/* Edit Dialog */}
+        <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Thematic Area</DialogTitle>
+              <DialogDescription>
+                Update the name and description of the thematic area.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Enter thematic area name"
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Enter description (optional)"
+                  rows={3}
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingItem(null);
+                  setEditName("");
+                  setEditDescription("");
+                }}
+                disabled={updateMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEdit}
+                disabled={updateMutation.isPending || !editName.trim()}
+              >
+                {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
