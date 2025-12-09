@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 export default function AddThematicArea() {
   const [sector, setSector] = useState("");
   const [thematicArea, setThematicArea] = useState("");
+  const [description, setDescription] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ export default function AddThematicArea() {
       toast({ title: "Success", description: "Thematic area created successfully." });
       setSector("");
       setThematicArea("");
+      setDescription("");
       navigate("/thematic-areas"); // much better UX
     },
     onError: (err: any) => {
@@ -44,10 +46,9 @@ export default function AddThematicArea() {
       return;
     }
 
-    // THIS IS THE FIX → swap the fields + trim + send null instead of empty string
     mutation.mutate({
       name: thematicArea.trim(),
-      description: sector, // sector is actually the "category" here
+      description: description.trim() || undefined, // Only use description if provided
     });
   };
 
@@ -93,6 +94,20 @@ export default function AddThematicArea() {
               onChange={(e) => setThematicArea(e.target.value)}
               placeholder="e.g. Flood Risk Management"
               className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Enter a description for this thematic area (optional)"
+              rows={4}
+              className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             />
           </div>
 
