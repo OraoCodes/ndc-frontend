@@ -8,7 +8,7 @@ import { KenyaMap } from "@/components/kenya-map"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Link } from "react-router-dom"
-import { listThematicAreas, listPublications, getCountySummaryPerformance, type ThematicArea, type CountySummaryPerformance } from "@/lib/supabase-api"
+import { listThematicAreas, listPublications, getCountySummaryPerformance, downloadPublication, type ThematicArea, type CountySummaryPerformance } from "@/lib/supabase-api"
 
 // Publication interface matching database schema
 interface Publication {
@@ -335,12 +335,25 @@ export default function Home() {
                                         )}
 
                                         {/* CTA */}
-                                        <Link
-                                            to={`/publications/${publication.id}`}
-                                            className="mt-auto text-blue-600 font-medium text-sm flex items-center gap-1"
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const blob = await downloadPublication(publication.id);
+                                                    const url = URL.createObjectURL(blob);
+                                                    const a = document.createElement("a");
+                                                    a.href = url;
+                                                    a.download = publication.filename || `publication-${publication.id}.pdf`;
+                                                    a.click();
+                                                    URL.revokeObjectURL(url);
+                                                } catch (err) {
+                                                    console.error("Failed to download publication:", err);
+                                                    alert("Failed to download publication. Please try again.");
+                                                }
+                                            }}
+                                            className="mt-auto text-blue-600 font-medium text-sm flex items-center gap-1 hover:text-blue-800 transition-colors"
                                         >
-                                            Read Report →
-                                        </Link>
+                                            Download →
+                                        </button>
                                     </div>
                                 ))}
                             </div>

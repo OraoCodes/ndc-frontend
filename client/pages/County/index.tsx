@@ -103,17 +103,107 @@ export default function CountyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Indicator ID to label mapping (from CountyData.jsx)
+  const INDICATOR_MAP: Record<string, { label: string; type: string; pillar: string; options?: string[]; scores?: number[] }> = {
+    // Governance
+    "g1": { label: "Relevant sector policy aligned with NDCs exists", type: "yesno", pillar: "Governance" },
+    "g2": { label: "% of staff trained in climate-related planning", type: "percent", pillar: "Governance" },
+    "g3": { label: "Climate targets in county performance contracts", type: "yesno", pillar: "Governance" },
+    "g4": { label: "Climate goals in County Integrated Development Plan (CIDP)", type: "yesno", pillar: "Governance" },
+    "g5": { label: "Stakeholder participation mechanism established", type: "yesno", pillar: "Governance" },
+    "g6": { label: "Coordination mechanism established (committees, MoUs)", type: "yesno", pillar: "Governance" },
+    // MRV
+    "m1": { label: "MRV system for NDC tracking exists", type: "yesno", pillar: "MRV" },
+    "m2": { label: "Frequency of data updates", type: "select", pillar: "MRV", options: ["Never", "Annually", "Quarterly", "Monthly"], scores: [0, 3, 4, 5] },
+    "m3": { label: "% of indicators with available data", type: "percent", pillar: "MRV" },
+    "m4": { label: "Sector emission inventories available", type: "yesno", pillar: "MRV" },
+    "m5": { label: "County submits reports to national MRV system", type: "yesno", pillar: "MRV" },
+    "m6": { label: "Verification mechanism in place", type: "yesno", pillar: "MRV" },
+    // Mitigation
+    "mit1": { label: "GHG emission reduction target exists", type: "yesno", pillar: "Mitigation" },
+    "mit2": { label: "Annual GHG reduction achieved (%)", type: "percent", pillar: "Mitigation" },
+    "mit3": { label: "Renewable energy share in sector (%)", type: "percent", pillar: "Mitigation" },
+    "mit4": { label: "Waste diverted from landfill (%)", type: "percent", pillar: "Mitigation" },
+    "mit5": { label: "Methane capture systems in use", type: "yesno", pillar: "Mitigation" },
+    "mit6": { label: "Circular economy initiatives adopted", type: "yesno", pillar: "Mitigation" },
+    // Adaptation
+    "a1": { label: "Climate risk assessment conducted", type: "yesno", pillar: "Adaptation" },
+    "a2": { label: "% population with resilient infrastructure", type: "percent", pillar: "Adaptation" },
+    "a3": { label: "Early warning systems operational (count)", type: "number", pillar: "Adaptation" },
+    "a4": { label: "Ecosystem restoration area (hectares)", type: "number", pillar: "Adaptation" },
+    "a5": { label: "Drought/flood response protocols in place", type: "yesno", pillar: "Adaptation" },
+    // Finance
+    "f1": { label: "Climate budget line exists", type: "yesno", pillar: "Finance" },
+    "f2": { label: "Climate budget allocation (% of total)", type: "percent", pillar: "Finance" },
+    "f3": { label: "Climate finance mobilized (KES millions)", type: "number", pillar: "Finance" },
+    "f4": { label: "Access to international climate finance", type: "yesno", pillar: "Finance" },
+    "f5": { label: "Private sector participation in climate action", type: "yesno", pillar: "Finance" },
+  };
+
+  // Calculate score from raw value based on indicator type
+  const calculateScore = (value: any, indicatorDef: { type: string; options?: string[]; scores?: number[] }): number => {
+    if (!value || value === "") return 0;
+    
+    if (indicatorDef.type === "yesno") {
+      return value === "yes" ? 10 : 0;
+    }
+    if (indicatorDef.type === "percent") {
+      return Math.min(parseFloat(value) || 0, 100) / 10;
+    }
+    if (indicatorDef.type === "number") {
+      return Math.min((parseFloat(value) || 0) / 100, 10);
+    }
+    if (indicatorDef.type === "select" && indicatorDef.options && indicatorDef.scores) {
+      const idx = indicatorDef.options.indexOf(value);
+      return idx >= 0 ? (indicatorDef.scores[idx] || 0) : 0;
+    }
+    return 0;
+  };
+
   // Map flat indicator array → official grouped structure with real scores
-  const mapIndicators = (rawIndicators: any[], officialGroups: typeof WATER_INDICATORS) => {
-    const scoreMap = new Map(rawIndicators.map(i => [i.indicator.toLowerCase(), i]))
+  const mapIndicators = (rawIndicators: any, officialGroups: typeof WATER_INDICATORS) => {
+    // Ensure rawIndicators is an array
+    let indicatorsArray: any[] = [];
+    
+    if (Array.isArray(rawIndicators)) {
+      indicatorsArray = rawIndicators;
+    } else if (rawIndicators && typeof rawIndicators === 'object') {
+      // Convert object format { "g1": "value", "g2": "value" } to array format with calculated scores
+      indicatorsArray = Object.entries(rawIndicators)
+        .filter(([key]) => INDICATOR_MAP[key]) // Only include known indicator IDs
+        .map(([key, value]) => {
+          const indicatorDef = INDICATOR_MAP[key];
+          const score = calculateScore(value, indicatorDef);
+          return {
+            indicator: indicatorDef.label,
+            score: score,
+            description: value ? "Data recorded" : "Data not yet entered.",
+            rawValue: value
+          };
+        });
+    }
+    
+    const scoreMap = new Map(indicatorsArray.map(i => [i.indicator.toLowerCase(), i]))
 
     const buildCategory = (officialList: readonly string[]) => {
       return officialList.map((officialText, i) => {
         // Find best match by substring (very reliable)
-        const match = Array.from(scoreMap.entries()).find(([key]) =>
-          key.includes(officialText.toLowerCase().slice(0, 30)) ||
-          officialText.toLowerCase().includes(key.slice(0, 30))
-        )
+        // Try multiple matching strategies for better accuracy
+        const officialLower = officialText.toLowerCase();
+        const match = Array.from(scoreMap.entries()).find(([key, item]) => {
+          const keyLower = key.toLowerCase();
+          // Strategy 1: Check if key contains significant words from official text
+          const officialWords = officialLower.split(/\s+/).filter(w => w.length > 4);
+          const keyWords = keyLower.split(/\s+/).filter(w => w.length > 4);
+          const hasCommonWords = officialWords.some(w => keyWords.includes(w)) || 
+                                  keyWords.some(w => officialWords.includes(w));
+          
+          // Strategy 2: Substring matching (original)
+          const substringMatch = keyLower.includes(officialLower.slice(0, 30)) ||
+                                 officialLower.includes(keyLower.slice(0, 30));
+          
+          return hasCommonWords || substringMatch;
+        })
 
         const realItem = match ? match[1] : null
 
@@ -154,8 +244,8 @@ export default function CountyPage() {
         const perf = await getCountyPerformance(county.name, 2025)
 
         // 3. Transform flat arrays → grouped with real scores
-        const water = mapIndicators(perf.waterIndicators || [], WATER_INDICATORS)
-        const waste = mapIndicators(perf.wasteIndicators || [], WASTE_INDICATORS)
+        const water = mapIndicators(perf.waterIndicators, WATER_INDICATORS)
+        const waste = mapIndicators(perf.wasteIndicators, WASTE_INDICATORS)
 
         setData({
           name: perf.county || county.name,
