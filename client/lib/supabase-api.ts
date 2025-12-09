@@ -223,6 +223,32 @@ export async function downloadPublication(id: number): Promise<Blob> {
   return data;
 }
 
+export async function deletePublication(id: number): Promise<void> {
+  // Get publication metadata to get storage path
+  const publication = await getPublication(id);
+  if (!publication) throw new Error('Publication not found');
+
+  // Delete file from storage first
+  if (publication.storage_path) {
+    const { error: storageError } = await supabase.storage
+      .from('publications')
+      .remove([publication.storage_path]);
+
+    if (storageError) {
+      console.error('Error deleting file from storage:', storageError);
+      // Continue with database deletion even if storage deletion fails
+    }
+  }
+
+  // Delete publication record from database
+  const { error } = await supabase
+    .from('publications')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
 // ============================================================================
 // COUNTY PERFORMANCE
 // ============================================================================

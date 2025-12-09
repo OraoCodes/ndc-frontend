@@ -1,7 +1,7 @@
 import { MainLayout } from "@/components/MainLayout";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listPublications, downloadPublication, createPublication } from "@/lib/supabase-api";
+import { listPublications, downloadPublication, deletePublication } from "@/lib/supabase-api";
 import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,7 @@ export default function Publications() {
     });
 
     const [uploading, setUploading] = useState(false);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
 
     const uploadMutation = useMutation({
         mutationFn: async (payload: { title: string; filename: string; date?: string; summary?: string; contentBase64: string }) => {
@@ -180,8 +181,40 @@ export default function Publications() {
             URL.revokeObjectURL(url);
         } catch (err) {
             console.error(err);
-            alert('Failed to download publication. Please try again.');
+            toast({
+                title: "Download Failed",
+                description: "Failed to download publication. Please try again.",
+                variant: "destructive",
+            });
         }
+    };
+
+    const deleteMutation = useMutation({
+        mutationFn: deletePublication,
+        onSuccess: () => {
+            setDeletingId(null);
+            qc.invalidateQueries({ queryKey: ["publications"] });
+            toast({
+                title: "Success",
+                description: "Publication deleted successfully.",
+            });
+        },
+        onError: (err: any) => {
+            setDeletingId(null);
+            toast({
+                title: "Delete Failed",
+                description: err?.message || "Failed to delete publication. Please try again.",
+                variant: "destructive",
+            });
+        },
+    });
+
+    const onDelete = async (id: number, title: string) => {
+        if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+            return;
+        }
+        setDeletingId(id);
+        deleteMutation.mutate(id);
     };
 
     return (
@@ -236,7 +269,7 @@ export default function Publications() {
                                     </p>
                                     <p className="text-sm text-foreground/80 mt-2 line-clamp-2">{p.summary}</p>
 
-                                    <div className="mt-4 flex items-center justify-between">
+                                    <div className="mt-4 flex items-center justify-between gap-2">
                                         <button
                                             onClick={() => onDownload(p.id, p.filename)}
                                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-background text-foreground text-sm border border-border hover:bg-accent"
@@ -244,7 +277,17 @@ export default function Publications() {
                                             <Download size={14} />
                                             Download
                                         </button>
-                                        <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                                        <button
+                                            onClick={() => onDelete(p.id, p.title)}
+                                            disabled={deletingId === p.id}
+                                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-destructive text-destructive-foreground text-sm hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <Trash2 size={14} />
+                                            {deletingId === p.id ? "Deleting..." : "Delete"}
+                                        </button>
+                                    </div>
+                                    <div className="mt-2">
+                                        <span className="text-xs text-muted-foreground truncate block">
                                             {p.filename}
                                         </span>
                                     </div>
