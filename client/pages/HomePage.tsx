@@ -125,21 +125,39 @@ export default function Home() {
         return { text: "Needs Improvement", color: "bg-orange-500 text-black" }
     }
 
+    // Convert thematic area name to URL-friendly slug
+    const getThematicAreaSlug = (areaName: string): string => {
+        return areaName
+            .toLowerCase()
+            .replace(/&/g, 'and')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+
     // Map thematic area names from database to their route paths
     const getThematicAreaRoute = (areaName: string): string => {
+        // Special mappings for existing routes (by exact name match)
         const routeMap: Record<string, string> = {
+            'Governance & Policy Framework': '/governance',
             'Governance': '/governance',
             'MRV': '/mrv',
+            'Mitigation Actions': '/mitigation',
             'Mitigation': '/mitigation',
             'Adaptation & Resilience': '/adaptation',
             'Adaptation': '/adaptation',
+            'Climate Finance & Investment': '/finance-technology-transfer',
             'Finance & Resource Mobilization': '/finance-technology-transfer',
             'Finance & Technology Transfer': '/finance-technology-transfer',
         };
         
-        // Return mapped route or fallback to a safe default
-        return routeMap[areaName] || '/';
+        // Return mapped route or use slug-based route
+        return routeMap[areaName] || `/${getThematicAreaSlug(areaName)}`;
     }
+
+    // Get unique thematic areas (remove duplicates by name, keep one of each)
+    const uniqueThematicAreas = Array.from(
+        new Map(thematicAreas.map(area => [area.name, area])).values()
+    );
 
     //     const getCountyName = (item: CountySummaryPerformance) => {
     //     return item.name || item.county || item.county_name || "Unknown County"
@@ -274,7 +292,7 @@ export default function Home() {
                             <div className="text-red-500">{errorThematicAreas}</div>
                         ) : (
                             <div className="space-y-6">
-                                {thematicAreas.map((area) => (
+                                {uniqueThematicAreas.map((area) => (
                                     <Link
                                         key={area.id}
                                         to={getThematicAreaRoute(area.name)}

@@ -32,6 +32,7 @@ import CountyScoringPage from "./pages/IndicatorPage";
 import CountyWaterPage from "./pages/Water-Management";
 import CountyWastePage from "./pages/Waste-Management";
 import AboutToolPage from "./pages/AboutToolPage";
+import ThematicAreaPage from "./pages/ThematicAreaPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,6 +69,7 @@ export const App = () => (
             <Route path="/adaptation" element={<Adaptation />} />
             <Route path="/finance-technology-transfer" element={<FinanceTechnologyTransfer />} />
             <Route path="/about-the-tool" element={<AboutToolPage />} />
+            <Route path="/:thematicAreaSlug" element={<ThematicAreaPage />} />
 
             {/* Protected Routes - Require Authentication */}
             <Route element={<PrivateRoute />}>
