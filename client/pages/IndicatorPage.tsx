@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { Loader2, Plus, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import { MainLayout } from "@/components/MainLayout"
-import { listIndicators, createIndicator, deleteIndicator, updateIndicator, type Indicator } from "@/lib/supabase-api"
+import { listIndicators, createIndicator, deleteIndicator, updateIndicator, listThematicAreas, type Indicator, type ThematicArea } from "@/lib/supabase-api"
 import { useToast } from "@/hooks/use-toast"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
@@ -24,17 +24,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 
-// Thematic areas for dropdown (used only for adding/editing)
-const THEMATIC_AREAS = [
-  "Governance",
-  "Governance & Institutional Arrangements",
-  "MRV",
-  "MRV (Monitoring, Reporting & Verification)",
-  "Mitigation",
-  "Adaptation & Resilience",
-  "Finance & Resource Mobilization"
-] as const
-
 const ITEMS_PER_PAGE = 10
 
 export default function IndicatorManagementPage() {
@@ -52,7 +41,7 @@ export default function IndicatorManagementPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [newIndicator, setNewIndicator] = useState({
     sector: "water" as "water" | "waste",
-    thematic_area: "Governance",
+    thematic_area: "",
     indicator_text: "",
     description: "",
     weight: 10,
@@ -62,6 +51,27 @@ export default function IndicatorManagementPage() {
     queryKey: ["indicators"],
     queryFn: listIndicators,
   })
+
+  // Fetch thematic areas from database
+  const { data: thematicAreas, isLoading: loadingThematicAreas } = useQuery<ThematicArea[]>({
+    queryKey: ["thematicAreas"],
+    queryFn: listThematicAreas,
+  })
+
+  // Get unique thematic area names (remove duplicates from water/waste)
+  const uniqueThematicAreaNames = Array.from(
+    new Set(thematicAreas?.map(area => area.name) || [])
+  ).sort()
+
+  // Update newIndicator thematic_area when thematic areas load
+  useEffect(() => {
+    const uniqueNames = Array.from(
+      new Set(thematicAreas?.map(area => area.name) || [])
+    ).sort()
+    if (uniqueNames.length > 0 && !newIndicator.thematic_area) {
+      setNewIndicator(prev => ({ ...prev, thematic_area: uniqueNames[0] }))
+    }
+  }, [thematicAreas, newIndicator.thematic_area])
 
   const createMutation = useMutation({
     mutationFn: (payload: {
@@ -76,7 +86,7 @@ export default function IndicatorManagementPage() {
       setShowAddDialog(false)
       setNewIndicator({
         sector: "water",
-        thematic_area: "Governance",
+        thematic_area: uniqueThematicAreaNames[0] || "",
         indicator_text: "",
         description: "",
         weight: 10,
@@ -244,7 +254,7 @@ export default function IndicatorManagementPage() {
   return (
     <MainLayout>
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-        {/* Header */}
+          {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Indicators</h2>
           <button
@@ -319,7 +329,7 @@ export default function IndicatorManagementPage() {
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
 
         {/* Mobile Card View */}
         <div className="block md:hidden space-y-4">
@@ -462,13 +472,23 @@ export default function IndicatorManagementPage() {
                   onChange={(e) =>
                     setNewIndicator({ ...newIndicator, thematic_area: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={loadingThematicAreas}
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {THEMATIC_AREAS.map((area) => (
-                    <option key={area} value={area}>
-                      {area}
-                    </option>
-                  ))}
+                  {loadingThematicAreas ? (
+                    <option>Loading thematic areas...</option>
+                  ) : uniqueThematicAreaNames.length === 0 ? (
+                    <option>No thematic areas available</option>
+                  ) : (
+                    <>
+                      <option value="">Select thematic area</option>
+                      {uniqueThematicAreaNames.map((area) => (
+                        <option key={area} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
               </div>
               <div>
@@ -558,7 +578,7 @@ export default function IndicatorManagementPage() {
                   <option value="waste">Waste</option>
                 </select>
               </div>
-              <div>
+                          <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Thematic Area <span className="text-destructive">*</span>
                 </label>
@@ -567,15 +587,25 @@ export default function IndicatorManagementPage() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, thematic_area: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={loadingThematicAreas}
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {THEMATIC_AREAS.map((area) => (
-                    <option key={area} value={area}>
-                      {area}
-                    </option>
-                  ))}
+                  {loadingThematicAreas ? (
+                    <option>Loading thematic areas...</option>
+                  ) : uniqueThematicAreaNames.length === 0 ? (
+                    <option>No thematic areas available</option>
+                  ) : (
+                    <>
+                      <option value="">Select thematic area</option>
+                      {uniqueThematicAreaNames.map((area) => (
+                        <option key={area} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
-              </div>
+                    </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Indicator <span className="text-destructive">*</span>
@@ -589,8 +619,8 @@ export default function IndicatorManagementPage() {
                   placeholder="Value"
                   className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-              </div>
-              <div>
+          </div>
+          <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Description
                 </label>
@@ -603,8 +633,8 @@ export default function IndicatorManagementPage() {
                   rows={4}
                   className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
                 />
-              </div>
-              <div>
+            </div>
+                          <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Max Score
                 </label>
@@ -619,7 +649,7 @@ export default function IndicatorManagementPage() {
                   max="10"
                   className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-              </div>
+                  </div>
             </div>
             <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
               <Button 
