@@ -1,67 +1,27 @@
 import { MainLayout } from "@/components/MainLayout";
-import { CheckCircle, AlertCircle, Save } from "lucide-react";
+import { Save, Edit, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { getCounty, createCounty, updateCounty, saveCountyPerformance, getCountyPerformanceByCountyId } from "@/lib/supabase-api";
+import { 
+  getCounty, 
+  createCounty, 
+  updateCounty, 
+  deleteCounty,
+  saveCountyPerformance, 
+  getCountyPerformanceByCountyId,
+  listIndicators,
+  listThematicAreas
+} from "@/lib/supabase-api";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from "react-router-dom";
-
-// Real NDC Index Pillars & Weights
-const PILLARS = {
-  Governance: { weight: 30, color: "blue" },
-  MRV: { weight: 20, color: "purple" },
-  Mitigation: { weight: 20, color: "emerald" },
-  Adaptation: { weight: 15, color: "orange" },
-  Finance: { weight: 15, color: "pink" },
-};
-
-// Real indicators from your document
-const INDICATORS = [
-  // Governance (30%)
-  { id: "g1", pillar: "Governance", label: "Relevant sector policy aligned with NDCs exists", type: "yesno", weight: 6 },
-  { id: "g2", pillar: "Governance", label: "% of staff trained in climate-related planning", type: "percent", weight: 5 },
-  { id: "g3", pillar: "Governance", label: "Climate targets in county performance contracts", type: "yesno", weight: 5 },
-  { id: "g4", pillar: "Governance", label: "Climate goals in County Integrated Development Plan (CIDP)", type: "yesno", weight: 6 },
-  { id: "g5", pillar: "Governance", label: "Stakeholder participation mechanism established", type: "yesno", weight: 5 },
-  { id: "g6", pillar: "Governance", label: "Coordination mechanism established (committees, MoUs)", type: "yesno", weight: 3 },
-
-  // MRV (20%)
-  { id: "m1", pillar: "MRV", label: "MRV system for NDC tracking exists", type: "yesno", weight: 5 },
-  { id: "m2", pillar: "MRV", label: "Frequency of data updates", type: "select", options: ["Never", "Annually", "Quarterly", "Monthly"], scores: [0, 3, 4, 5], weight: 4 },
-  { id: "m3", pillar: "MRV", label: "% of indicators with available data", type: "percent", weight: 4 },
-  { id: "m4", pillar: "MRV", label: "Sector emission inventories available", type: "yesno", weight: 3 },
-  { id: "m5", pillar: "MRV", label: "County submits reports to national MRV system", type: "yesno", weight: 3 },
-  { id: "m6", pillar: "MRV", label: "Verification mechanism in place", type: "yesno", weight: 1 },
-
-  // Mitigation (20%)
-  { id: "mit1", pillar: "Mitigation", label: "GHG emission reduction target exists", type: "yesno", weight: 4 },
-  { id: "mit2", pillar: "Mitigation", label: "Annual GHG reduction achieved (%)", type: "percent", weight: 5 },
-  { id: "mit3", pillar: "Mitigation", label: "Renewable energy share in sector (%)", type: "percent", weight: 3 },
-  { id: "mit4", pillar: "Mitigation", label: "Waste diverted from landfill (%)", type: "percent", weight: 4 },
-  { id: "mit5", pillar: "Mitigation", label: "Methane capture systems in use", type: "yesno", weight: 3 },
-  { id: "mit6", pillar: "Mitigation", label: "Circular economy initiatives adopted", type: "yesno", weight: 1 },
-
-  // Adaptation (15%)
-  { id: "a1", pillar: "Adaptation", label: "Climate risk assessment conducted", type: "yesno", weight: 4 },
-  { id: "a2", pillar: "Adaptation", label: "% population with resilient infrastructure", type: "percent", weight: 4 },
-  { id: "a3", pillar: "Adaptation", label: "Early warning systems operational (count)", type: "number", weight: 3 },
-  { id: "a4", pillar: "Adaptation", label: "Ecosystem restoration area (hectares)", type: "number", weight: 2 },
-  { id: "a5", pillar: "Adaptation", label: "Drought/flood response protocols in place", type: "yesno", weight: 2 },
-
-  // Finance (15%)
-  { id: "f1", pillar: "Finance", label: "Climate budget line exists", type: "yesno", weight: 4 },
-  { id: "f2", pillar: "Finance", label: "Climate budget allocation (% of total)", type: "percent", weight: 4 },
-  { id: "f3", pillar: "Finance", label: "Climate finance mobilized (KES millions)", type: "number", weight: 3 },
-  { id: "f4", pillar: "Finance", label: "Access to international climate finance", type: "yesno", weight: 3 },
-  { id: "f5", pillar: "Finance", label: "Private sector participation in climate action", type: "yesno", weight: 2 },
-];
 
 export default function CountyData() {
   const [county, setCounty] = useState("");
   const [year, setYear] = useState("2025");
-  const [population, setPopulation] = useState("");
-  const [sector, setSector] = useState("water");
-  const [scores, setScores] = useState({});
+  const [waterData, setWaterData] = useState({}); // { indicatorId: { response: "", comment: "" } }
+  const [wasteData, setWasteData] = useState({}); // { indicatorId: { response: "", comment: "" } }
+  const [lastEdited, setLastEdited] = useState(null);
+  const [expandedSections, setExpandedSections] = useState({}); // { "water-Governance": true, "waste-MRV": false, ... }
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -69,99 +29,214 @@ export default function CountyData() {
   const location = useLocation();
   const editingId = location.state?.countyId;
 
+  // Fetch indicators from database
+  const { data: indicators = [], isLoading: indicatorsLoading } = useQuery({
+    queryKey: ["indicators"],
+    queryFn: () => listIndicators(),
+  });
+
+  // Fetch thematic areas to get weight percentages
+  const { data: thematicAreas = [] } = useQuery({
+    queryKey: ["thematicAreas"],
+    queryFn: () => listThematicAreas(),
+  });
+
   const { data: existingCounty } = useQuery({
     queryKey: ["county", editingId],
     queryFn: () => editingId ? getCounty(editingId) : Promise.resolve(null),
     enabled: !!editingId,
   });
 
-  // Load saved performance data when editing or when sector/year changes
+  // Load saved performance data when editing or when year changes
   useEffect(() => {
     const loadPerformanceData = async () => {
-      // Only load if we have a county ID (editing mode) and valid year/sector
-      if (!editingId || !year || !sector) {
-        // If not in editing mode, clear scores
+      if (!editingId || !year) {
         if (!editingId) {
-          setScores({});
+          setWaterData({});
+          setWasteData({});
+          setLastEdited(null);
         }
         return;
       }
 
       try {
-        const performance = await getCountyPerformanceByCountyId(
-          editingId,
-          Number(year),
-          sector
-        );
+        // Load both water and waste data
+        const [waterPerformance, wastePerformance] = await Promise.all([
+          getCountyPerformanceByCountyId(editingId, Number(year), "water").catch(() => null),
+          getCountyPerformanceByCountyId(editingId, Number(year), "waste").catch(() => null)
+        ]);
 
-        if (performance && performance.indicators_json) {
-          // Load saved indicators into scores state
-          setScores(performance.indicators_json || {});
+        const formatIndicatorData = (performance) => {
+          if (!performance || !performance.indicators_json) return {};
+          
+          const savedData = performance.indicators_json;
+          const formattedData = {};
+          
+          Object.keys(savedData).forEach(key => {
+            const value = savedData[key];
+            if (typeof value === 'object' && value !== null && (value.response !== undefined || value.comment !== undefined || value.score !== undefined)) {
+              formattedData[key] = {
+                response: value.response || "",
+                comment: value.comment || "",
+                score: value.score !== undefined ? value.score : ""
+              };
+            } else {
+              formattedData[key] = {
+                response: value || "",
+                comment: "",
+                score: ""
+              };
+            }
+          });
+          
+          return formattedData;
+        };
+
+        setWaterData(formatIndicatorData(waterPerformance));
+        setWasteData(formatIndicatorData(wastePerformance));
+        
+        // Use the most recent update time
+        const waterTime = waterPerformance?.updated_at || waterPerformance?.created_at;
+        const wasteTime = wastePerformance?.updated_at || wastePerformance?.created_at;
+        if (waterTime || wasteTime) {
+          const times = [waterTime, wasteTime].filter(Boolean).map(t => new Date(t));
+          setLastEdited(new Date(Math.max(...times)).toISOString());
         } else {
-          // No saved data for this sector/year, clear scores
-          setScores({});
+          setLastEdited(null);
         }
       } catch (err) {
         console.error("Error loading performance data:", err);
-        // If there's an error, just clear scores
-        setScores({});
+        setWaterData({});
+        setWasteData({});
+        setLastEdited(null);
       }
     };
 
     loadPerformanceData();
-  }, [editingId, year, sector]);
+  }, [editingId, year]);
 
   useEffect(() => {
     if (existingCounty) {
       setCounty(existingCounty.name || "");
-      setPopulation(existingCounty.population || "");
     }
   }, [existingCounty]);
 
-  // Calculate pillar and total scores
-  const calculateScores = () => {
-    const pillarScores = {};
-    let totalScore = 0;
-
-    Object.keys(PILLARS).forEach((pillar) => {
-      let pillarTotal = 0;
-      let pillarWeight = 0;
-
-      INDICATORS.filter(i => i.pillar === pillar).forEach(ind => {
-        const val = scores[ind.id] || "";
-        let score = 0;
-
-        if (ind.type === "yesno") score = val === "yes" ? 10 : 0;
-        if (ind.type === "percent") score = Math.min(parseFloat(val) || 0, 100) / 10;
-        if (ind.type === "number") score = Math.min((parseFloat(val) || 0) / 100, 10);
-        if (ind.type === "select") {
-          const idx = ind.options?.indexOf(val) ?? -1;
-          score = idx >= 0 ? (ind.scores?.[idx] || 0) : 0;
+  // Group indicators by sector and thematic area
+  const groupedIndicators = (sectorType) => {
+    const grouped = {};
+    
+    indicators
+      .filter(ind => ind.sector === sectorType)
+      .forEach(ind => {
+        const thematicArea = ind.thematic_area || "Other";
+        if (!grouped[thematicArea]) {
+          grouped[thematicArea] = [];
         }
-
-        pillarTotal += score * ind.weight;
-        pillarWeight += ind.weight;
+        grouped[thematicArea].push(ind);
       });
+    
+    return grouped;
+  };
 
-      const normalized = pillarWeight > 0 ? (pillarTotal / pillarWeight) * 10 : 0;
-      pillarScores[pillar] = Number(normalized.toFixed(1));
-      totalScore += normalized * (PILLARS[pillar].weight / 100);
+  // Calculate score for a single indicator based on response or use saved score
+  const calculateIndicatorScore = (indicator, response, savedScore) => {
+    // If there's a saved score, use it (editable score takes precedence)
+    if (savedScore !== undefined && savedScore !== null && savedScore !== "") {
+      const scoreValue = parseFloat(savedScore);
+      if (!isNaN(scoreValue)) {
+        return Math.max(0, Math.min(scoreValue, indicator.weight || 10)); // Clamp between 0 and max weight
+      }
+    }
+    
+    // Otherwise, calculate from response
+    if (!response || response === "") return 0;
+    
+    // For now, use weight as max score and calculate based on response type
+    // This is a simplified calculation - adjust based on your scoring logic
+    const maxScore = indicator.weight || 10;
+    
+    // If response is a number (percentage or count), calculate proportional score
+    if (!isNaN(parseFloat(response))) {
+      const numValue = parseFloat(response);
+      // For percentages, divide by 10 to get score out of 10
+      if (response.includes('%')) {
+        return Math.min((numValue / 10) * (maxScore / 10), maxScore);
+      }
+      // For other numbers, use a scaling factor
+      return Math.min((numValue / 100) * maxScore, maxScore);
+    }
+    
+    // For yes/no responses
+    if (response.toLowerCase() === "yes" || response.toLowerCase() === "y") {
+      return maxScore;
+    }
+    if (response.toLowerCase() === "no" || response.toLowerCase() === "n") {
+      return 0;
+    }
+    
+    return 0;
+  };
+
+  // Get thematic area weight from database
+  const getThematicAreaWeight = (sectorType, thematicAreaName) => {
+    const area = thematicAreas.find(
+      ta => ta.sector === sectorType && ta.name === thematicAreaName
+    );
+    return area?.weight_percentage || 0;
+  };
+
+  // Calculate thematic area score (0-100 scale) - MRV formula: (score/max score)*100
+  // Scores are calculated from indicator scores, not directly editable
+  const calculateThematicAreaScore = (thematicAreaIndicators, dataSource, thematicAreaName, sectorType) => {
+    let totalScore = 0;
+    let maxScore = 0;
+    
+    // Calculate scores for each indicator
+    thematicAreaIndicators.forEach(ind => {
+      const indicatorId = ind.id.toString();
+      const data = dataSource[indicatorId] || { response: "", comment: "", score: "" };
+      const score = calculateIndicatorScore(ind, data.response, data.score);
+      totalScore += score;
+      maxScore += (ind.weight || 10);
     });
-
-    return { pillarScores, totalScore: Number(totalScore.toFixed(1)) };
+    
+    // MRV formula: (score/max score)*100
+    const normalizedScore = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+    
+    // Get weight percentage from database
+    const weightPercentage = getThematicAreaWeight(sectorType, thematicAreaName);
+    
+    // Calculate weighted score (for NDC formula)
+    const weightedScore = (normalizedScore * weightPercentage) / 100;
+    
+    return { 
+      score: Math.round(normalizedScore), 
+      maxScore: 100,
+      weightedScore: weightedScore,
+      weightPercentage: weightPercentage
+    };
   };
 
-  const { pillarScores, totalScore } = calculateScores();
-
-  const getRating = (score) => {
-    if (score < 40) return { label: "Poor", color: "text-red-600 bg-red-50" };
-    if (score < 55) return { label: "Average", color: "text-yellow-600 bg-yellow-50" };
-    if (score < 70) return { label: "Good", color: "text-cyan-600 bg-cyan-50" };
-    if (score < 80) return { label: "Satisfactory", color: "text-blue-600 bg-blue-50" };
-    return { label: "Excellent", color: "text-green-600 bg-green-50" };
+  // Update indicator response, comment, or score
+  const updateIndicatorData = (indicatorId, field, value, sectorType) => {
+    if (sectorType === "water") {
+      setWaterData(prev => ({
+        ...prev,
+        [indicatorId]: {
+          ...(prev[indicatorId] || { response: "", comment: "", score: "" }),
+          [field]: value
+        }
+      }));
+    } else {
+      setWasteData(prev => ({
+        ...prev,
+        [indicatorId]: {
+          ...(prev[indicatorId] || { response: "", comment: "", score: "" }),
+          [field]: value
+        }
+      }));
+    }
   };
-
-  const rating = getRating(totalScore);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -179,12 +254,10 @@ export default function CountyData() {
       if (!editingId) {
         try {
           const res = await createCounty({ 
-            name: county.trim(), 
-            population: population ? parseInt(population) : undefined 
+            name: county.trim()
           });
           countyId = res.id;
         } catch (err) {
-          // If county already exists, try to find it
           const error = err || {};
           if (error?.code === '23505' || error?.message?.includes('duplicate') || error?.message?.includes('unique')) {
             const { listCounties } = await import("@/lib/supabase-api");
@@ -192,13 +265,6 @@ export default function CountyData() {
             const existing = counties.find(c => c.name.toLowerCase() === county.trim().toLowerCase());
             if (existing) {
               countyId = existing.id;
-              // Update population if provided
-              if (population) {
-                await updateCounty(existing.id, { 
-                  name: existing.name, 
-                  population: parseInt(population) 
-                });
-              }
             } else {
               throw new Error("County name already exists. Please use a different name or edit the existing county.");
             }
@@ -208,41 +274,107 @@ export default function CountyData() {
         }
       } else {
         await updateCounty(editingId, { 
-          name: county.trim(), 
-          population: population ? parseInt(population) : undefined 
+          name: county.trim()
         });
       }
 
-      // Prepare indicators JSON
-      const indicatorsJson = Object.fromEntries(
-        INDICATORS.map(i => [i.id, scores[i.id] || ""])
-      );
+      // Save both water and waste performance data
+      const saveSectorData = async (sectorType, dataSource) => {
+        const sectorIndicators = indicators.filter(ind => ind.sector === sectorType);
+        const grouped = groupedIndicators(sectorType);
+        let sectorIndex = 0;
+        const thematicAreaScores = {};
 
-      // Save county performance for the selected sector
-      try {
+        // Calculate scores for each thematic area using NDC formula
+        // Index = (Governance × 30%) + (MRV × 25%) + (Mitigation × 20%) + (Adaptation × 15%) + (Finance × 10%)
+        Object.keys(grouped).forEach(thematicArea => {
+          const areaIndicators = grouped[thematicArea];
+          const { score, weightedScore, weightPercentage } = calculateThematicAreaScore(
+            areaIndicators, 
+            dataSource, 
+            thematicArea,
+            sectorType
+          );
+          thematicAreaScores[thematicArea] = { 
+            score, 
+            maxScore: 100,
+            weightedScore,
+            weightPercentage
+          };
+          
+          // Sum weighted scores for sector index (NDC formula)
+          sectorIndex += weightedScore;
+        });
+
+        // Prepare indicators JSON with new format (response, comment, and score)
+        const indicatorsJson = {};
+        sectorIndicators.forEach(ind => {
+          const indicatorId = ind.id.toString();
+          const data = dataSource[indicatorId] || { response: "", comment: "", score: "" };
+          indicatorsJson[indicatorId] = {
+            response: data.response || "",
+            comment: data.comment || "",
+            score: data.score !== undefined && data.score !== null ? data.score : ""
+          };
+        });
+
         await saveCountyPerformance(
           countyId,
           Number(year),
-          sector,
+          sectorType,
           {
-            overall_score: totalScore,
-            sector_score: totalScore,
-            governance: pillarScores.Governance,
-            mrv: pillarScores.MRV,
-            mitigation: pillarScores.Mitigation,
-            adaptation: pillarScores.Adaptation,
-            finance: pillarScores.Finance,
+            overall_score: sectorIndex, // Sector index (will be combined later for overall)
+            sector_score: sectorIndex, // Sector index score
+            governance: thematicAreaScores["Governance & Policy Framework"]?.score || thematicAreaScores["Governance"]?.score || 0,
+            mrv: thematicAreaScores["MRV"]?.score || 0,
+            mitigation: thematicAreaScores["Mitigation Actions"]?.score || thematicAreaScores["Mitigation"]?.score || 0,
+            adaptation: thematicAreaScores["Adaptation & Resilience"]?.score || thematicAreaScores["Adaptation"]?.score || 0,
+            finance: thematicAreaScores["Climate Finance & Investment"]?.score || thematicAreaScores["Finance"]?.score || 0,
             indicators_json: indicatorsJson,
           }
         );
         
-        console.log("Successfully saved performance data:", {
-          countyId,
-          year: Number(year),
-          sector,
-          totalScore,
-          pillarScores
-        });
+        return sectorIndex;
+      };
+
+      try {
+        // Save water and waste data, get their sector scores
+        const [waterSectorScore, wasteSectorScore] = await Promise.all([
+          saveSectorData("water", waterData),
+          saveSectorData("waste", wasteData)
+        ]);
+        
+        // Calculate overall index: (Water × 50%) + (Waste × 50%)
+        const overallIndex = (waterSectorScore * 0.5) + (wasteSectorScore * 0.5);
+        
+        // Update both records with overall index
+        const waterPerf = await getCountyPerformanceByCountyId(countyId, Number(year), "water");
+        const wastePerf = await getCountyPerformanceByCountyId(countyId, Number(year), "waste");
+        
+        if (waterPerf) {
+          await saveCountyPerformance(countyId, Number(year), "water", {
+            overall_score: overallIndex,
+            sector_score: waterPerf.sector_score,
+            governance: waterPerf.governance,
+            mrv: waterPerf.mrv,
+            mitigation: waterPerf.mitigation,
+            adaptation: waterPerf.adaptation,
+            finance: waterPerf.finance,
+            indicators_json: waterPerf.indicators_json
+          });
+        }
+        if (wastePerf) {
+          await saveCountyPerformance(countyId, Number(year), "waste", {
+            overall_score: overallIndex,
+            sector_score: wastePerf.sector_score,
+            governance: wastePerf.governance,
+            mrv: wastePerf.mrv,
+            mitigation: wastePerf.mitigation,
+            adaptation: wastePerf.adaptation,
+            finance: wastePerf.finance,
+            indicators_json: wastePerf.indicators_json
+          });
+        }
       } catch (err) {
         console.error("Error saving county performance:", err);
         const errorMessage = err?.message || err?.toString() || 'Unknown error';
@@ -255,12 +387,8 @@ export default function CountyData() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       toast({ 
         title: "Success", 
-        description: `NDC Index data saved for ${sector} sector!` 
+        description: `County data saved successfully!` 
       });
-      // Small delay before navigation to ensure toast is visible
-      setTimeout(() => {
-        navigate("/counties-list");
-      }, 1000);
     },
     onError: (err) => {
       console.error("Save mutation error:", err);
@@ -273,172 +401,309 @@ export default function CountyData() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingId) {
+        throw new Error("No county to delete");
+      }
+      await deleteCounty(editingId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["counties"] });
+      toast({ 
+        title: "Deleted", 
+        description: "County deleted successfully." 
+      });
+      navigate("/counties-list");
+    },
+    onError: (err) => {
+      toast({ 
+        title: "Error", 
+        description: err?.message || "Failed to delete county.",
+        variant: "destructive"
+      });
+    },
+  });
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Toggle section expand/collapse
+  const toggleSection = (sector, thematicArea) => {
+    const key = `${sector}-${thematicArea}`;
+    setExpandedSections(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  // Check if section is expanded (default to false - collapsed)
+  const isSectionExpanded = (sector, thematicArea) => {
+    const key = `${sector}-${thematicArea}`;
+    return expandedSections[key] === true; // Default to collapsed
+  };
+
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto space-y-8 py-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-foreground">Water & Waste NDC Implementation Index</h1>
-          <p className="text-lg text-muted-foreground mt-2">
-            Track county performance across 5 climate pillars
-          </p>
+      <div className="max-w-7xl mx-auto space-y-6 py-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">County Data</h1>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+            {lastEdited && (
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                Last edited {formatDate(lastEdited)}
+              </span>
+            )}
+            {editingId && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigate("/county-data", { state: { countyId: editingId } })}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                >
+                  <Edit size={16} />
+                  <span className="hidden sm:inline">Edit</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm("Are you sure you want to delete this county?")) {
+                      deleteMutation.mutate();
+                    }
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
+                >
+                  <Trash2 size={16} />
+                  <span className="hidden sm:inline">{deleteMutation.isPending ? "Deleting..." : "Delete"}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* County Info */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        {/* County and Year Inputs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">County *</label>
+            <label className="block text-sm font-medium mb-2">County</label>
             <input
               type="text"
               value={county}
               onChange={(e) => setCounty(e.target.value)}
-              className="mt-1 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="e.g. Kisumu"
-              required
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Enter county"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Year *</label>
+            <label className="block text-sm font-medium mb-2">Year</label>
             <select 
               value={year} 
               onChange={(e) => setYear(e.target.value)} 
-              className="mt-1 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {[2025, 2024, 2023, 2022, 2021].map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Sector *</label>
-            <select 
-              value={sector} 
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "water" || value === "waste") {
-                  setSector(value);
-                }
-              }} 
-              className="mt-1 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-            >
-              <option value="water">Water</option>
-              <option value="waste">Waste</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Population (optional)</label>
-            <input
-              type="number"
-              value={population}
-              onChange={(e) => setPopulation(e.target.value)}
-              className="mt-1 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="e.g. 1200000"
-              min="0"
-            />
-          </div>
-          <div className="flex items-end">
-            <div className={`w-full text-center py-4 rounded-lg font-bold text-2xl ${rating.color}`}>
-              {totalScore.toFixed(1)} / 100 — {rating.label}
-            </div>
-          </div>
         </div>
 
-        {/* Pillars */}
-        {Object.keys(PILLARS).map(pillar => {
-          const { weight, color } = PILLARS[pillar];
-          const score = pillarScores[pillar] || 0;
-
-          return (
-            <div key={pillar} className="bg-white rounded-xl shadow-sm border border-border overflow-hidden">
-              <div className={`bg-${color}-600 text-white px-6 py-4 flex justify-between items-center`}>
-                <h2 className="text-xl font-bold">{pillar} ({weight}%)</h2>
-                <span className="text-2xl">{score.toFixed(1)}</span>
-              </div>
-              <div className="p-6 space-y-5">
-                {INDICATORS.filter(i => i.pillar === pillar).map(ind => (
-                  <div key={ind.id} className="flex items-center gap-6 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium">{ind.label}</div>
-                      <div className="text-xs text-gray-500 mt-1">Weight: {ind.weight}%</div>
+        {/* Water Management Section */}
+        <div className="space-y-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Water Management</h2>
+          {Object.keys(groupedIndicators("water")).map(thematicArea => {
+            const areaIndicators = groupedIndicators("water")[thematicArea];
+            const { score, maxScore } = calculateThematicAreaScore(areaIndicators, waterData, thematicArea, "water");
+            const isExpanded = isSectionExpanded("water", thematicArea);
+            
+            return (
+              <div key={thematicArea} className="border border-border rounded-lg overflow-hidden bg-white">
+                <button
+                  onClick={() => toggleSection("water", thematicArea)}
+                  className="w-full bg-gray-100 px-4 sm:px-6 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 border-b border-border hover:bg-gray-200 transition-colors"
+                >
+                  <span className="font-semibold text-foreground text-left">{thematicArea}</span>
+                  <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                    <div className="flex gap-2 sm:gap-4 text-xs sm:text-sm">
+                      <span className="text-foreground">Score : {score}</span>
+                      <span className="text-muted-foreground">Max Score : {maxScore}</span>
                     </div>
-
-                    {ind.type === "yesno" && (
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setScores(prev => ({ ...prev, [ind.id]: "yes" }))}
-                          className={`px-4 py-2 rounded ${scores[ind.id] === "yes" ? "bg-green-600 text-white" : "bg-gray-200"}`}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          onClick={() => setScores(prev => ({ ...prev, [ind.id]: "no" }))}
-                          className={`px-4 py-2 rounded ${scores[ind.id] === "no" ? "bg-red-600 text-white" : "bg-gray-200"}`}
-                        >
-                          No
-                        </button>
-                      </div>
-                    )}
-
-                    {ind.type === "percent" && (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={scores[ind.id] || ""}
-                          onChange={(e) => setScores(prev => ({ ...prev, [ind.id]: e.target.value }))}
-                          className="w-24 px-3 py-2 border rounded text-center"
-                          placeholder="0-100"
-                        />
-                        <span>%</span>
-                      </div>
-                    )}
-
-                    {ind.type === "select" && (
-                      <select
-                        value={scores[ind.id] || ""}
-                        onChange={(e) => setScores(prev => ({ ...prev, [ind.id]: e.target.value }))}
-                        className="px-4 py-2 border rounded"
-                      >
-                        <option value="">Select...</option>
-                        {ind.options?.map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    )}
-
-                    {ind.type === "number" && (
-                      <input
-                        type="number"
-                        value={scores[ind.id] || ""}
-                        onChange={(e) => setScores(prev => ({ ...prev, [ind.id]: e.target.value }))}
-                        className="w-32 px-3 py-2 border rounded text-center"
-                        placeholder="Enter value"
-                      />
+                    {isExpanded ? (
+                      <ChevronUp className="h-5 w-5 text-foreground flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-foreground flex-shrink-0" />
                     )}
                   </div>
-                ))}
+                </button>
+                {isExpanded && (
+                  <div className="overflow-x-auto transition-all duration-300 ease-in-out">
+                    <table className="w-full min-w-[600px]">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-foreground border-b">INDICATOR</th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-foreground border-b">RESPONSE</th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-foreground border-b">COMMENT</th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-foreground border-b">SCORE</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {areaIndicators.map(ind => {
+                          const indicatorId = ind.id.toString();
+                          const data = waterData[indicatorId] || { response: "", comment: "", score: "" };
+                          const score = calculateIndicatorScore(ind, data.response, data.score);
+                          
+                          return (
+                            <tr key={ind.id} className="border-b border-border hover:bg-gray-50">
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-foreground max-w-[200px] sm:max-w-[300px] lg:max-w-[400px]">
+                                <div className="truncate" title={ind.indicator_text}>
+                                  {ind.indicator_text}
+                                </div>
+                              </td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                <input
+                                  type="text"
+                                  value={data.response}
+                                  onChange={(e) => updateIndicatorData(indicatorId, "response", e.target.value, "water")}
+                                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-input rounded focus:outline-none focus:ring-1 focus:ring-primary text-xs sm:text-sm"
+                                  placeholder="Enter response"
+                                />
+                              </td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                <input
+                                  type="text"
+                                  value={data.comment}
+                                  onChange={(e) => updateIndicatorData(indicatorId, "comment", e.target.value, "water")}
+                                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-input rounded focus:outline-none focus:ring-1 focus:ring-primary text-xs sm:text-sm"
+                                  placeholder="Enter comment"
+                                />
+                              </td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={data.score !== undefined && data.score !== null && data.score !== "" ? data.score : Math.round(score)}
+                                  onChange={(e) => updateIndicatorData(indicatorId, "score", e.target.value, "water")}
+                                  className="w-20 px-2 py-1.5 border border-input rounded text-center text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
 
-        <div className="flex justify-center pt-8 gap-4">
+        {/* Waste Management Section */}
+        <div className="space-y-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Waste Management</h2>
+          {Object.keys(groupedIndicators("waste")).map(thematicArea => {
+            const areaIndicators = groupedIndicators("waste")[thematicArea];
+            const { score, maxScore } = calculateThematicAreaScore(areaIndicators, wasteData, thematicArea, "waste");
+            const isExpanded = isSectionExpanded("waste", thematicArea);
+            
+            return (
+              <div key={thematicArea} className="border border-border rounded-lg overflow-hidden bg-white">
+                <button
+                  onClick={() => toggleSection("waste", thematicArea)}
+                  className="w-full bg-gray-100 px-4 sm:px-6 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 border-b border-border hover:bg-gray-200 transition-colors"
+                >
+                  <span className="font-semibold text-foreground text-left">{thematicArea}</span>
+                  <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                    <div className="flex gap-2 sm:gap-4 text-xs sm:text-sm">
+                      <span className="text-foreground">Score : {score}</span>
+                      <span className="text-muted-foreground">Max Score : {maxScore}</span>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronUp className="h-5 w-5 text-foreground flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-foreground flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="overflow-x-auto transition-all duration-300 ease-in-out">
+                    <table className="w-full min-w-[600px]">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-foreground border-b">INDICATOR</th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-foreground border-b">RESPONSE</th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-foreground border-b">COMMENT</th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-foreground border-b">SCORE</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {areaIndicators.map(ind => {
+                          const indicatorId = ind.id.toString();
+                          const data = wasteData[indicatorId] || { response: "", comment: "", score: "" };
+                          const score = calculateIndicatorScore(ind, data.response, data.score);
+                          
+                          return (
+                            <tr key={ind.id} className="border-b border-border hover:bg-gray-50">
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-foreground max-w-[200px] sm:max-w-[300px] lg:max-w-[400px]">
+                                <div className="truncate" title={ind.indicator_text}>
+                                  {ind.indicator_text}
+                                </div>
+                              </td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                <input
+                                  type="text"
+                                  value={data.response}
+                                  onChange={(e) => updateIndicatorData(indicatorId, "response", e.target.value, "waste")}
+                                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-input rounded focus:outline-none focus:ring-1 focus:ring-primary text-xs sm:text-sm"
+                                  placeholder="Enter response"
+                                />
+                              </td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                <input
+                                  type="text"
+                                  value={data.comment}
+                                  onChange={(e) => updateIndicatorData(indicatorId, "comment", e.target.value, "waste")}
+                                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-input rounded focus:outline-none focus:ring-1 focus:ring-primary text-xs sm:text-sm"
+                                  placeholder="Enter comment"
+                                />
+                              </td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={data.score !== undefined && data.score !== null && data.score !== "" ? data.score : Math.round(score)}
+                                  onChange={(e) => updateIndicatorData(indicatorId, "score", e.target.value, "water")}
+                                  className="w-20 px-2 py-1.5 border border-input rounded text-center text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Save Button */}
+        <div className="flex justify-center pt-4">
           <button
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !county || !year}
-            className="flex items-center gap-3 px-10 py-4 bg-blue-500 text-white text-lg rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition font-semibold"
+            disabled={saveMutation.isPending || !county || !year || indicatorsLoading}
+            className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white text-lg rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-semibold"
           >
             <Save size={20} />
-            {saveMutation.isPending ? "Saving..." : `Save ${sector.charAt(0).toUpperCase() + sector.slice(1)} Sector Data`}
+            {saveMutation.isPending ? "Saving..." : "Save"}
           </button>
-          {saveMutation.isPending && (
-            <div className="flex items-center text-muted-foreground">
-              <span className="animate-pulse">Saving to database...</span>
-            </div>
-          )}
         </div>
       </div>
     </MainLayout>
   );
-
 }

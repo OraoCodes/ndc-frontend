@@ -8,15 +8,21 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
 export default function AddThematicArea() {
-  const [sector, setSector] = useState("");
+  const [sector, setSector] = useState<"water" | "waste" | "">("");
   const [thematicArea, setThematicArea] = useState("");
   const [description, setDescription] = useState("");
+  const [weightPercentage, setWeightPercentage] = useState<number>(0);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const mutation = useMutation({
-    mutationFn: (payload: { name: string; description: string }) =>
+    mutationFn: (payload: { 
+      name: string; 
+      description?: string;
+      sector?: 'water' | 'waste';
+      weight_percentage?: number;
+    }) =>
       createThematicArea(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["thematicAreas"] });
@@ -24,7 +30,8 @@ export default function AddThematicArea() {
       setSector("");
       setThematicArea("");
       setDescription("");
-      navigate("/thematic-areas"); // much better UX
+      setWeightPercentage(0);
+      navigate("/thematic-areas");
     },
     onError: (err: any) => {
       toast({
@@ -48,7 +55,9 @@ export default function AddThematicArea() {
 
     mutation.mutate({
       name: thematicArea.trim(),
-      description: description.trim() || undefined, // Only use description if provided
+      description: description.trim() || undefined,
+      sector: sector as 'water' | 'waste',
+      weight_percentage: weightPercentage || undefined,
     });
   };
 
@@ -68,13 +77,12 @@ export default function AddThematicArea() {
             <div className="relative">
               <select
                 value={sector}
-                onChange={(e) => setSector(e.target.value)}
+                onChange={(e) => setSector(e.target.value as "water" | "waste" | "")}
                 className="w-full px-4 py-2 pr-10 bg-white border border-input rounded-lg text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="">Select sector</option>
-                <option value="Water">Water</option>
-                <option value="Waste">Waste</option>
-                {/* add more as needed */}
+                <option value="water">Water</option>
+                <option value="waste">Waste</option>
               </select>
               <ChevronDown
                 size={18}
@@ -93,6 +101,23 @@ export default function AddThematicArea() {
               value={thematicArea}
               onChange={(e) => setThematicArea(e.target.value)}
               placeholder="e.g. Flood Risk Management"
+              className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          {/* Weight Percentage */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Weight Percentage
+            </label>
+            <input
+              type="number"
+              value={weightPercentage}
+              onChange={(e) => setWeightPercentage(parseFloat(e.target.value) || 0)}
+              placeholder="Enter weight percentage"
+              min="0"
+              max="100"
+              step="0.1"
               className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>

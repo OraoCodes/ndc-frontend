@@ -17,20 +17,71 @@ export interface County {
   thematic_area_id?: number | null;
   created_at?: string;
   updated_at?: string;
+  created_by?: string | null;
+  status?: 'draft' | 'published';
+  created_by_user?: {
+    full_name: string;
+  } | null;
+  water_score?: number | null;
+  waste_score?: number | null;
 }
 
 export async function listCounties(): Promise<County[]> {
   try {
+    const currentYear = new Date().getFullYear();
+    
+    // Get counties with creator info and latest year's performance scores
     const { data, error } = await supabase
       .from('counties')
-      .select('*')
+      .select(`
+        *,
+        created_by_user:user_profiles(full_name)
+      `)
       .order('name');
 
     if (error) {
       console.error('Error fetching counties:', error);
       throw error;
     }
-    return data || [];
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Get performance scores for all counties for the current year
+    const countyIds = data.map(c => c.id);
+    const { data: performanceData, error: perfError } = await supabase
+      .from('county_performance')
+      .select('county_id, sector, sector_score')
+      .in('county_id', countyIds)
+      .eq('year', currentYear);
+
+    if (perfError) {
+      console.error('Error fetching county performance:', perfError);
+      // Continue without performance data rather than failing
+    }
+
+    // Map performance scores to counties
+    const performanceMap = new Map<number, { water?: number; waste?: number }>();
+    (performanceData || []).forEach((perf: any) => {
+      if (!performanceMap.has(perf.county_id)) {
+        performanceMap.set(perf.county_id, {});
+      }
+      const scores = performanceMap.get(perf.county_id)!;
+      if (perf.sector === 'water') {
+        scores.water = perf.sector_score;
+      } else if (perf.sector === 'waste') {
+        scores.waste = perf.sector_score;
+      }
+    });
+
+    // Combine counties with performance scores
+    return data.map((county: any) => ({
+      ...county,
+      created_by_user: county.created_by_user ? { full_name: county.created_by_user.full_name } : null,
+      water_score: performanceMap.get(county.id)?.water ?? null,
+      waste_score: performanceMap.get(county.id)?.waste ?? null,
+    }));
   } catch (err) {
     console.error('listCounties failed:', err);
     throw err;
@@ -55,13 +106,19 @@ export async function createCounty(payload: {
   name: string;
   population?: number;
   thematic_area_id?: number;
+  status?: 'draft' | 'published';
 }): Promise<County> {
+  // Get current user ID
+  const { data: { user } } = await supabase.auth.getUser();
+  
   const { data, error } = await supabase
     .from('counties')
     .insert({
       name: payload.name,
       population: payload.population || null,
       thematic_area_id: payload.thematic_area_id || null,
+      created_by: user?.id || null,
+      status: payload.status || 'draft',
     })
     .select()
     .single();
@@ -72,7 +129,12 @@ export async function createCounty(payload: {
 
 export async function updateCounty(
   id: number,
-  payload: { name: string; population?: number; thematic_area_id?: number }
+  payload: { 
+    name: string; 
+    population?: number; 
+    thematic_area_id?: number;
+    status?: 'draft' | 'published';
+  }
 ): Promise<County> {
   const { data, error } = await supabase
     .from('counties')
@@ -80,6 +142,7 @@ export async function updateCounty(
       name: payload.name,
       population: payload.population || null,
       thematic_area_id: payload.thematic_area_id || null,
+      status: payload.status || undefined,
     })
     .eq('id', id)
     .select()
@@ -106,22 +169,68 @@ export interface ThematicArea {
   id: number;
   name: string;
   description?: string | null;
+  sector?: 'water' | 'waste' | null;
+  weight_percentage?: number | null;
   created_at?: string;
   updated_at?: string;
+  indicator_count?: number; // Computed field for UI
 }
 
 export async function listThematicAreas(): Promise<ThematicArea[]> {
-  const { data, error } = await supabase
-    .from('thematic_areas')
-    .select('*')
-    .order('name');
+  try {
+    // Get all thematic areas
+    const { data: thematicAreas, error: thematicError } = await supabase
+      .from('thematic_areas')
+      .select('*')
+      .order('sector')
+      .order('name');
 
-  if (error) {
-    console.error('Error fetching thematic areas:', error);
-    throw error;
+    if (thematicError) {
+      console.error('Error fetching thematic areas:', thematicError);
+      throw thematicError;
+    }
+
+    if (!thematicAreas || thematicAreas.length === 0) {
+      return [];
+    }
+
+    // Get all indicators to count per thematic area and sector
+    const { data: indicators, error: indicatorError } = await supabase
+      .from('indicators')
+      .select('sector, thematic_area');
+
+    if (indicatorError) {
+      console.error('Error fetching indicators for count:', indicatorError);
+      // Continue without indicator counts rather than failing
+    }
+
+    // Count indicators per thematic area per sector
+    const indicatorCounts = new Map<string, number>();
+    (indicators || []).forEach((ind: any) => {
+      const key = `${ind.sector}:${ind.thematic_area}`;
+      indicatorCounts.set(key, (indicatorCounts.get(key) || 0) + 1);
+    });
+
+    // Add indicator counts to thematic areas
+    return thematicAreas.map((area: any) => {
+      const waterKey = `water:${area.name}`;
+      const wasteKey = `waste:${area.name}`;
+      const waterCount = indicatorCounts.get(waterKey) || 0;
+      const wasteCount = indicatorCounts.get(wasteKey) || 0;
+      
+      // Return thematic area with indicator count for its sector
+      const count = area.sector === 'water' ? waterCount : 
+                    area.sector === 'waste' ? wasteCount : 0;
+
+      return {
+        ...area,
+        indicator_count: count,
+      };
+    });
+  } catch (err) {
+    console.error('listThematicAreas failed:', err);
+    throw err;
   }
-  console.log('Thematic areas query result:', data);
-  return data || [];
 }
 
 export async function getThematicArea(id: number): Promise<ThematicArea | null> {
@@ -138,12 +247,74 @@ export async function getThematicArea(id: number): Promise<ThematicArea | null> 
   return data;
 }
 
-export async function createThematicArea(payload: { name: string; description?: string }): Promise<ThematicArea> {
+/**
+ * Validate that thematic area weights total to 100% or less for a given sector
+ * @param sector - The sector to validate ('water' or 'waste')
+ * @param excludeId - Optional ID to exclude from calculation (for updates)
+ * @returns Validation result with current total and message
+ */
+export async function validateThematicAreaWeights(
+  sector: 'water' | 'waste',
+  excludeId?: number
+): Promise<{ isValid: boolean; currentTotal: number; message: string }> {
+  try {
+    let query = supabase
+      .from('thematic_areas')
+      .select('weight_percentage')
+      .eq('sector', sector);
+    
+    if (excludeId) {
+      query = query.neq('id', excludeId);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    const currentTotal = (data || []).reduce(
+      (sum, area) => sum + (area.weight_percentage || 0),
+      0
+    );
+    
+    return {
+      isValid: currentTotal <= 100,
+      currentTotal,
+      message: currentTotal > 100
+        ? `Total weight would exceed 100%. Current total: ${currentTotal.toFixed(2)}%`
+        : `Current total: ${currentTotal.toFixed(2)}%`
+    };
+  } catch (err) {
+    console.error('Error validating thematic area weights:', err);
+    throw err;
+  }
+}
+
+export async function createThematicArea(payload: { 
+  name: string; 
+  description?: string;
+  sector?: 'water' | 'waste';
+  weight_percentage?: number;
+}): Promise<ThematicArea> {
+  // Validate weights before creating
+  if (payload.sector && payload.weight_percentage !== undefined && payload.weight_percentage > 0) {
+    const validation = await validateThematicAreaWeights(payload.sector);
+    const newTotal = validation.currentTotal + payload.weight_percentage;
+    
+    if (newTotal > 100) {
+      throw new Error(
+        `Cannot add thematic area: Total weight would be ${newTotal.toFixed(2)}%, exceeding 100%. ` +
+        `Current total: ${validation.currentTotal.toFixed(2)}%, New weight: ${payload.weight_percentage}%`
+      );
+    }
+  }
+  
   const { data, error } = await supabase
     .from('thematic_areas')
     .insert({
       name: payload.name,
       description: payload.description || null,
+      sector: payload.sector || null,
+      weight_percentage: payload.weight_percentage || null,
     })
     .select()
     .single();
@@ -154,13 +325,33 @@ export async function createThematicArea(payload: { name: string; description?: 
 
 export async function updateThematicArea(
   id: number,
-  payload: { name: string; description?: string }
+  payload: { 
+    name: string; 
+    description?: string;
+    sector?: 'water' | 'waste';
+    weight_percentage?: number;
+  }
 ): Promise<ThematicArea> {
+  // Validate weights before updating
+  if (payload.sector && payload.weight_percentage !== undefined && payload.weight_percentage > 0) {
+    const validation = await validateThematicAreaWeights(payload.sector, id);
+    const newTotal = validation.currentTotal + payload.weight_percentage;
+    
+    if (newTotal > 100) {
+      throw new Error(
+        `Cannot update thematic area: Total weight would be ${newTotal.toFixed(2)}%, exceeding 100%. ` +
+        `Current total (excluding this area): ${validation.currentTotal.toFixed(2)}%, New weight: ${payload.weight_percentage}%`
+      );
+    }
+  }
+  
   const { data, error } = await supabase
     .from('thematic_areas')
     .update({
       name: payload.name,
       description: payload.description || null,
+      sector: payload.sector !== undefined ? payload.sector : undefined,
+      weight_percentage: payload.weight_percentage !== undefined ? payload.weight_percentage : undefined,
     })
     .eq('id', id)
     .select()
@@ -426,6 +617,55 @@ export async function getCountyPerformanceByCountyId(
   return data;
 }
 
+/**
+ * Check if a county has both water and waste scores for a given year
+ * and automatically update status to 'published' if both exist
+ */
+export async function checkAndUpdateCountyStatus(
+  countyId: number,
+  year: number
+): Promise<void> {
+  try {
+    // Check if both water and waste performance records exist
+    const { data: performanceData, error } = await supabase
+      .from('county_performance')
+      .select('sector, sector_score')
+      .eq('county_id', countyId)
+      .eq('year', year)
+      .in('sector', ['water', 'waste']);
+
+    if (error) {
+      console.error('Error checking county performance:', error);
+      return; // Don't throw, just log and continue
+    }
+
+    // Check if both sectors have data (sector_score is not null)
+    const hasWater = performanceData?.some(
+      (p: any) => p.sector === 'water' && p.sector_score != null
+    );
+    const hasWaste = performanceData?.some(
+      (p: any) => p.sector === 'waste' && p.sector_score != null
+    );
+
+    // If both sectors have scores, update status to 'published'
+    if (hasWater && hasWaste) {
+      const { error: updateError } = await supabase
+        .from('counties')
+        .update({ status: 'published' })
+        .eq('id', countyId);
+
+      if (updateError) {
+        console.error('Error updating county status:', updateError);
+      } else {
+        console.log(`County ${countyId} status updated to 'published' (both sectors complete)`);
+      }
+    }
+  } catch (err) {
+    console.error('Error in checkAndUpdateCountyStatus:', err);
+    // Don't throw - this is a background operation
+  }
+}
+
 export async function saveCountyPerformance(
   countyId: number,
   year: number,
@@ -481,6 +721,10 @@ export async function saveCountyPerformance(
     }
 
     console.log('Successfully saved county performance:', data);
+
+    // After successfully saving, check if both sectors are complete
+    // and automatically update status to 'published' if so
+    await checkAndUpdateCountyStatus(countyId, year);
   } catch (err: any) {
     console.error('Error in saveCountyPerformance:', err);
     throw err;
@@ -586,6 +830,7 @@ export interface Indicator {
   sector: 'water' | 'waste';
   thematic_area: string;
   indicator_text: string;
+  description?: string | null;
   weight: number;
   created_at?: string;
   updated_at?: string;
@@ -615,6 +860,7 @@ export async function createIndicator(payload: {
   sector: 'water' | 'waste';
   thematic_area: string;
   indicator_text: string;
+  description?: string;
   weight?: number;
 }): Promise<Indicator> {
   const { data, error } = await supabase
@@ -623,8 +869,36 @@ export async function createIndicator(payload: {
       sector: payload.sector,
       thematic_area: payload.thematic_area,
       indicator_text: payload.indicator_text,
+      description: payload.description || null,
       weight: payload.weight || 10,
     })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateIndicator(
+  id: number,
+  payload: {
+    sector?: 'water' | 'waste';
+    thematic_area?: string;
+    indicator_text?: string;
+    description?: string;
+    weight?: number;
+  }
+): Promise<Indicator> {
+  const { data, error } = await supabase
+    .from('indicators')
+    .update({
+      sector: payload.sector,
+      thematic_area: payload.thematic_area,
+      indicator_text: payload.indicator_text,
+      description: payload.description !== undefined ? payload.description : undefined,
+      weight: payload.weight,
+    })
+    .eq('id', id)
     .select()
     .single();
 

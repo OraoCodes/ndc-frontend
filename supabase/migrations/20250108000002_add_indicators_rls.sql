@@ -15,3 +15,4 @@ CREATE POLICY "Authenticated users can manage indicators"
   WITH CHECK (auth.role() = 'authenticated');
 
 
+

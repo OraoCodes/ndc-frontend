@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/MainLayout";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listCounties, deleteCounty, type County } from "@/lib/supabase-api";
+import { listCounties, deleteCounty, updateCounty, type County } from "@/lib/supabase-api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CountiesList() {
@@ -40,6 +40,27 @@ export default function CountiesList() {
     },
   });
 
+  const handleStatusToggle = async (county: County) => {
+    const newStatus = county.status === 'published' ? 'draft' : 'published';
+    try {
+      await updateCounty(county.id, { 
+        name: county.name, 
+        status: newStatus 
+      });
+      queryClient.invalidateQueries({ queryKey: ["counties"] });
+      toast({ 
+        title: "Success", 
+        description: `County status changed to ${newStatus}.` 
+      });
+    } catch (err: any) {
+      toast({ 
+        title: "Error", 
+        description: err?.message ?? "Failed to update status",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
@@ -62,55 +83,97 @@ export default function CountiesList() {
             <table className="w-full">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
-                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">County</th>
-                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">Population</th>
-                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">Total Score</th>
-                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">Actions</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">COUNTY</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">CREATED</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">CREATED BY</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">WATER MANAGEMENT</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">WASTE MANAGEMENT</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">STATUS</th>
+                  <th className="text-left py-5 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">OPERATION</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading && (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-muted-foreground">Loading counties...</td>
+                    <td colSpan={7} className="py-12 text-center text-muted-foreground">Loading counties...</td>
                   </tr>
                 )}
                 {isError && (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-destructive">Error: {(error as Error)?.message}</td>
+                    <td colSpan={7} className="py-12 text-center text-destructive">Error: {(error as Error)?.message}</td>
                   </tr>
                 )}
-                {data?.map((county) => (
-                  <tr key={county.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                    <td className="py-5 px-6 font-medium text-foreground">{county.name}</td>
-                    <td className="py-5 px-6 text-foreground">{county.population?.toLocaleString() || "-"}</td>
-                    <td className="py-5 px-6 text-foreground">{county.thematic_area_id ?? "-"}</td>
-                    <td className="py-5 px-6">
-                      <div className="flex items-center gap-4">
+                {data?.map((county) => {
+                  // Format created date
+                  const createdDate = county.created_at 
+                    ? new Date(county.created_at).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })
+                    : '-';
+                  
+                  // Get creator name
+                  const creatorName = county.created_by_user?.full_name || '-';
+                  
+                  // Get scores (round to nearest integer)
+                  const waterScore = county.water_score !== null && county.water_score !== undefined
+                    ? Math.round(county.water_score).toString()
+                    : '-';
+                  const wasteScore = county.waste_score !== null && county.waste_score !== undefined
+                    ? Math.round(county.waste_score).toString()
+                    : '-';
+                  
+                  // Status
+                  const status = county.status || 'draft';
+                  const isPublished = status === 'published';
+                  
+                  return (
+                    <tr key={county.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                      <td className="py-5 px-6 font-medium text-foreground">{county.name}</td>
+                      <td className="py-5 px-6 text-foreground">{createdDate}</td>
+                      <td className="py-5 px-6 text-foreground">{creatorName}</td>
+                      <td className="py-5 px-6 text-foreground">{waterScore}</td>
+                      <td className="py-5 px-6 text-foreground">{wasteScore}</td>
+                      <td className="py-5 px-6">
                         <button
-                          onClick={() => navigate("/county-data", { state: { countyId: county.id } })}
-                          className="text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition"
+                          onClick={() => handleStatusToggle(county)}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                            isPublished
+                              ? 'bg-green-500 text-white hover:bg-green-600'
+                              : 'bg-gray-400 text-white hover:bg-gray-500'
+                          }`}
+                          title={`Click to change status to ${isPublished ? 'Draft' : 'Published'}`}
                         >
-                          <Edit size={16} />
-                          Edit
+                          {isPublished ? 'Published' : 'Draft'}
                         </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Delete "${county.name}" permanently?`)) {
-                              deleteMutation.mutate(Number(county.id));
-                            }
-                          }}
-                          className="text-destructive hover:text-destructive/80 font-medium flex items-center gap-1 transition"
-                        >
-                          <Trash2 size={16} />
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-5 px-6">
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => navigate("/county-data", { state: { countyId: county.id } })}
+                            className="text-primary hover:text-primary/80 font-medium underline transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete "${county.name}" permanently?`)) {
+                                deleteMutation.mutate(Number(county.id));
+                              }
+                            }}
+                            className="text-destructive hover:text-destructive/80 font-medium underline transition"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {data?.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-muted-foreground">No counties found.</td>
+                    <td colSpan={7} className="py-12 text-center text-muted-foreground">No counties found.</td>
                   </tr>
                 )}
               </tbody>

@@ -1,8 +1,7 @@
 import { MainLayout } from "@/components/MainLayout";
-import { Plus, Edit } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listThematicAreas, deleteThematicArea, updateThematicArea, type ThematicArea } from "@/lib/supabase-api";
+import { listThematicAreas, deleteThematicArea, updateThematicArea, createThematicArea, type ThematicArea } from "@/lib/supabase-api";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -16,10 +15,20 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function ThematicAreas() {
-  const navigate = useNavigate();
   const [editingItem, setEditingItem] = useState<ThematicArea | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    sector: "water" as "water" | "waste",
+    weight_percentage: 0,
+  });
+  const [newForm, setNewForm] = useState({
+    name: "",
+    description: "",
+    sector: "" as "" | "water" | "waste",
+    weight_percentage: 0,
+  });
 
   const { data, isLoading, isError, error } = useQuery<ThematicArea[]>({
     queryKey: ["thematicAreas"],
@@ -28,6 +37,29 @@ export default function ThematicAreas() {
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const createMutation = useMutation({
+    mutationFn: (payload: {
+      name: string;
+      description?: string;
+      sector?: 'water' | 'waste';
+      weight_percentage?: number;
+    }) => createThematicArea(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["thematicAreas"] });
+      toast({ title: "Success", description: "Thematic area created successfully." });
+      setShowAddDialog(false);
+      setNewForm({
+        name: "",
+        description: "",
+        sector: "",
+        weight_percentage: 0,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err?.message ?? "Failed to create thematic area", variant: "destructive" });
+    },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteThematicArea(id),
@@ -41,14 +73,29 @@ export default function ThematicAreas() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (payload: { id: number; name: string; description?: string }) =>
-      updateThematicArea(payload.id, { name: payload.name, description: payload.description }),
+    mutationFn: (payload: { 
+      id: number; 
+      name: string; 
+      description?: string;
+      sector?: 'water' | 'waste';
+      weight_percentage?: number;
+    }) =>
+      updateThematicArea(payload.id, { 
+        name: payload.name, 
+        description: payload.description,
+        sector: payload.sector,
+        weight_percentage: payload.weight_percentage,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["thematicAreas"] });
       toast({ title: "Success", description: "Thematic area updated successfully." });
       setEditingItem(null);
-      setEditName("");
-      setEditDescription("");
+      setEditForm({
+        name: "",
+        description: "",
+        sector: "water",
+        weight_percentage: 0,
+      });
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err?.message ?? "Failed to update thematic area", variant: "destructive" });
@@ -57,106 +104,280 @@ export default function ThematicAreas() {
 
   const handleEditClick = (item: ThematicArea) => {
     setEditingItem(item);
-    setEditName(item.name);
-    setEditDescription(item.description || "");
+    setEditForm({
+      name: item.name,
+      description: item.description || "",
+      sector: item.sector || "water",
+      weight_percentage: item.weight_percentage || 0,
+    });
   };
 
   const handleSaveEdit = () => {
-    if (!editName.trim()) {
+    if (!editForm.name.trim()) {
       toast({ title: "Error", description: "Name is required", variant: "destructive" });
       return;
     }
     if (!editingItem) return;
     updateMutation.mutate({
       id: editingItem.id,
-      name: editName.trim(),
-      description: editDescription.trim() || undefined,
+      name: editForm.name.trim(),
+      description: editForm.description.trim() || undefined,
+      sector: editForm.sector,
+      weight_percentage: editForm.weight_percentage || undefined,
     });
   };
 
+  const handleAdd = () => {
+    if (!newForm.sector) {
+      toast({ title: "Error", description: "Please select a sector", variant: "destructive" });
+      return;
+    }
+    if (!newForm.name.trim()) {
+      toast({ title: "Error", description: "Thematic area name is required", variant: "destructive" });
+      return;
+    }
+    createMutation.mutate({
+      name: newForm.name.trim(),
+      description: newForm.description.trim() || undefined,
+      sector: newForm.sector,
+      weight_percentage: newForm.weight_percentage || undefined,
+    });
+  };
+
+  // Group thematic areas by sector
+  const waterAreas = data?.filter(area => area.sector === 'water') || [];
+  const wasteAreas = data?.filter(area => area.sector === 'waste') || [];
+
   return (
     <MainLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Thematic Areas</h2>
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h2 className="text-3xl font-bold text-foreground">Thematic Areas</h2>
           <button
-            onClick={() => navigate("/thematic-areas/add")}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
+            onClick={() => setShowAddDialog(true)}
+            className="flex items-center justify-center gap-2 px-5 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-medium shadow-lg"
           >
-            <Plus size={18} />
+            <Plus size={20} />
             Add New
           </button>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-lg border border-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-background border-b border-border">
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Name</th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Description</th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground text-xs uppercase tracking-wider">Operation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading && (
-                  <tr>
-                    <td colSpan={3} className="py-6 px-6 text-center text-muted-foreground">Loading...</td>
+        {/* WATER MANAGEMENT Section */}
+        <div className="space-y-4">
+          <div className="bg-sidebar text-sidebar-foreground py-4 px-6 rounded-t-lg">
+            <h3 className="text-lg font-bold uppercase">WATER MANAGEMENT</h3>
+          </div>
+          <div className="bg-white rounded-b-lg border border-border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-muted/50 border-b border-border">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">THEMATIC AREA</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">WEIGHT %</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">NO OF INDICATORS</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">OPERATION</th>
                   </tr>
-                )}
-                {isError && (
-                  <tr>
-                    <td colSpan={3} className="py-6 px-6 text-center text-destructive">Error: {(error as Error)?.message}</td>
-                  </tr>
-                )}
-                {data?.map((row) => (
-                  <tr key={row.id} className="border-b border-border hover:bg-background/50 transition-colors">
-                    <td className="py-4 px-6 text-foreground text-sm font-medium">{row.name}</td>
-                    <td className="py-4 px-6 text-foreground text-sm">{row.description ?? '-'}</td>
-                    <td className="py-4 px-6 text-sm">
-                      <div className="flex items-center gap-4">
-                        <button
-                          onClick={() => handleEditClick(row)}
-                          className="text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
-                        >
-                          <Edit size={16} />
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Delete thematic area "${row.name}"?`)) {
-                              deleteMutation.mutate(row.id);
-                            }
-                          }}
-                          className="text-destructive hover:text-destructive/80 transition-colors font-medium"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {data && data.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="py-6 px-6 text-center text-muted-foreground">No thematic areas found.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {isLoading && (
+                    <tr>
+                      <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">Loading...</td>
+                    </tr>
+                  )}
+                  {isError && (
+                    <tr>
+                      <td colSpan={4} className="py-6 px-6 text-center text-destructive">Error: {(error as Error)?.message}</td>
+                    </tr>
+                  )}
+                  {waterAreas.length === 0 && !isLoading && (
+                    <tr>
+                      <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">No thematic areas found for Water Management.</td>
+                    </tr>
+                  )}
+                  {waterAreas.map((area) => (
+                    <tr key={area.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                      <td className="py-4 px-6 text-foreground text-sm font-medium">{area.name}</td>
+                      <td className="py-4 px-6 text-foreground text-sm">{area.weight_percentage || 0}</td>
+                      <td className="py-4 px-6 text-foreground text-sm">{area.indicator_count || 0}</td>
+                      <td className="py-4 px-6 text-sm">
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => handleEditClick(area)}
+                            className="text-primary hover:text-primary/80 font-medium underline transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete thematic area "${area.name}"?`)) {
+                                deleteMutation.mutate(area.id);
+                              }
+                            }}
+                            className="text-destructive hover:text-destructive/80 font-medium underline transition"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
+        {/* WASTE MANAGEMENT Section */}
+        <div className="space-y-4">
+          <div className="bg-sidebar text-sidebar-foreground py-4 px-6 rounded-t-lg">
+            <h3 className="text-lg font-bold uppercase">WASTE MANAGEMENT</h3>
+          </div>
+          <div className="bg-white rounded-b-lg border border-border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-muted/50 border-b border-border">
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">THEMATIC AREA</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">WEIGHT %</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">NO OF INDICATORS</th>
+                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">OPERATION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wasteAreas.length === 0 && !isLoading && (
+                    <tr>
+                      <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">No thematic areas found for Waste Management.</td>
+                    </tr>
+                  )}
+                  {wasteAreas.map((area) => (
+                    <tr key={area.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                      <td className="py-4 px-6 text-foreground text-sm font-medium">{area.name}</td>
+                      <td className="py-4 px-6 text-foreground text-sm">{area.weight_percentage || 0}</td>
+                      <td className="py-4 px-6 text-foreground text-sm">{area.indicator_count || 0}</td>
+                      <td className="py-4 px-6 text-sm">
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => handleEditClick(area)}
+                            className="text-primary hover:text-primary/80 font-medium underline transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete thematic area "${area.name}"?`)) {
+                                deleteMutation.mutate(area.id);
+                              }
+                            }}
+                            className="text-destructive hover:text-destructive/80 font-medium underline transition"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Add New Dialog */}
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add New Thematic Area</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Sector <span className="text-destructive">*</span>
+                </label>
+                <select
+                  value={newForm.sector}
+                  onChange={(e) => setNewForm({ ...newForm, sector: e.target.value as "" | "water" | "waste" })}
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Select</option>
+                  <option value="water">Water</option>
+                  <option value="waste">Waste</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Thematic Area <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newForm.name}
+                  onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
+                  placeholder="Enter thematic area"
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={newForm.description}
+                  onChange={(e) => setNewForm({ ...newForm, description: e.target.value })}
+                  placeholder="Enter Thematic Area Description"
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Weight
+                </label>
+                <input
+                  type="number"
+                  value={newForm.weight_percentage}
+                  onChange={(e) => setNewForm({ ...newForm, weight_percentage: parseFloat(e.target.value) || 0 })}
+                  placeholder="Add % weight"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddDialog(false);
+                  setNewForm({
+                    name: "",
+                    description: "",
+                    sector: "",
+                    weight_percentage: 0,
+                  });
+                }}
+                disabled={createMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAdd}
+                disabled={createMutation.isPending || !newForm.name.trim() || !newForm.sector}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {createMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Edit Dialog */}
         <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Edit Thematic Area</DialogTitle>
               <DialogDescription>
-                Update the name and description of the thematic area.
+                Update the thematic area details.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -166,9 +387,37 @@ export default function ThematicAreas() {
                 </label>
                 <input
                   type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   placeholder="Enter thematic area name"
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Sector <span className="text-destructive">*</span>
+                </label>
+                <select
+                  value={editForm.sector}
+                  onChange={(e) => setEditForm({ ...editForm, sector: e.target.value as "water" | "waste" })}
+                  className="w-full px-4 py-2 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="water">Water</option>
+                  <option value="waste">Waste</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Weight Percentage
+                </label>
+                <input
+                  type="number"
+                  value={editForm.weight_percentage}
+                  onChange={(e) => setEditForm({ ...editForm, weight_percentage: parseFloat(e.target.value) || 0 })}
+                  placeholder="Enter weight percentage"
+                  min="0"
+                  max="100"
+                  step="0.1"
                   className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -177,8 +426,8 @@ export default function ThematicAreas() {
                   Description
                 </label>
                 <textarea
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                   placeholder="Enter description (optional)"
                   rows={3}
                   className="w-full px-4 py-2 border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
@@ -190,8 +439,12 @@ export default function ThematicAreas() {
                 variant="outline"
                 onClick={() => {
                   setEditingItem(null);
-                  setEditName("");
-                  setEditDescription("");
+                  setEditForm({
+                    name: "",
+                    description: "",
+                    sector: "water",
+                    weight_percentage: 0,
+                  });
                 }}
                 disabled={updateMutation.isPending}
               >
@@ -199,7 +452,7 @@ export default function ThematicAreas() {
               </Button>
               <Button
                 onClick={handleSaveEdit}
-                disabled={updateMutation.isPending || !editName.trim()}
+                disabled={updateMutation.isPending || !editForm.name.trim()}
               >
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
