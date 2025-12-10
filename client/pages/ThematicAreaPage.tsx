@@ -5,67 +5,66 @@ import { useParams, Link } from "react-router-dom"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { HeroBanner } from "@/components/hero-banner"
-import { listThematicAreas, listIndicators, getCountySummaryPerformance, type ThematicArea, type Indicator } from "@/lib/supabase-api"
+import { listThematicAreas, listIndicators, getCountyRankingsByThematicArea, type ThematicArea, type Indicator } from "@/lib/supabase-api"
+import { ThematicAreaRankings } from "./ThematicAreaRankings"
 import { Loader2 } from "lucide-react"
 
 export default function ThematicAreaPage() {
     const { thematicAreaSlug } = useParams<{ thematicAreaSlug: string }>()
     const [thematicArea, setThematicArea] = useState<ThematicArea | null>(null)
     const [indicators, setIndicators] = useState<Indicator[]>([])
-    const [countyData, setCountyData] = useState<any[]>([])
+    const [rankings, setRankings] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<"water" | "waste">("water")
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true)
                 
-                // Get all thematic areas
+                // Get all thematic areas from database
                 const areas = await listThematicAreas()
                 
-                // Find thematic area by slug (convert slug back to name)
-                const areaNameMap: Record<string, string> = {
-                    'governance-and-policy-framework': 'Governance & Policy Framework',
-                    'governance': 'Governance & Policy Framework',
-                    'mrv': 'MRV',
-                    'mitigation-actions': 'Mitigation Actions',
-                    'mitigation': 'Mitigation Actions',
-                    'adaptation-and-resilience': 'Adaptation & Resilience',
-                    'adaptation': 'Adaptation & Resilience',
-                    'climate-finance-and-investment': 'Climate Finance & Investment',
-                    'finance-and-resource-mobilization': 'Climate Finance & Investment',
-                    'finance-and-technology-transfer': 'Climate Finance & Investment',
-                }
-                
-                const areaName = areaNameMap[thematicAreaSlug || ''] || 
-                    areas.find(a => {
-                        const slug = a.name.toLowerCase()
-                            .replace(/&/g, 'and')
-                            .replace(/[^a-z0-9]+/g, '-')
-                            .replace(/^-+|-+$/g, '')
-                        return slug === thematicAreaSlug
-                    })?.name
+                // Dynamically find thematic area by slug - convert slug back to name
+                // This works for ANY thematic area in the database, not just hardcoded ones
+                const areaName = areas.find(a => {
+                    const slug = a.name.toLowerCase()
+                        .replace(/&/g, 'and')
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-+|-+$/g, '')
+                    return slug === thematicAreaSlug
+                })?.name
                 
                 if (areaName) {
                     const found = areas.find(a => a.name === areaName)
                     if (found) {
                         setThematicArea(found)
                         
-                        // Get indicators for this thematic area
+                        // Get indicators for this thematic area (both water and waste)
                         const allIndicators = await listIndicators()
                         const filtered = allIndicators.filter(
-                            ind => ind.thematic_area === areaName && ind.sector === activeTab
+                            ind => ind.thematic_area === areaName
                         )
                         setIndicators(filtered)
                         
-                        // Get county performance data
-                        const performance = await getCountySummaryPerformance(activeTab)
-                        setCountyData(performance || [])
+                        // Get county rankings for this thematic area
+                        // This may return empty array for new thematic areas without performance data
+                        try {
+                            const rankingsData = await getCountyRankingsByThematicArea(areaName)
+                            setRankings(rankingsData || [])
+                        } catch (rankingsError: any) {
+                            // If rankings fail, set empty array and continue (thematic area may not have data yet)
+                            console.warn('Could not fetch rankings for thematic area:', rankingsError)
+                            setRankings([])
+                        }
                     }
+                } else {
+                    // Thematic area not found - set error state
+                    setError(`Thematic area "${thematicAreaSlug}" not found`)
                 }
             } catch (error: any) {
                 console.error('Error fetching thematic area data:', error)
+                setError(error.message || "Failed to load data")
             } finally {
                 setLoading(false)
             }
@@ -74,7 +73,7 @@ export default function ThematicAreaPage() {
         if (thematicAreaSlug) {
             fetchData()
         }
-    }, [thematicAreaSlug, activeTab])
+    }, [thematicAreaSlug])
 
     if (loading) {
         return (
@@ -106,26 +105,6 @@ export default function ThematicAreaPage() {
         )
     }
 
-    const performanceColors = {
-        Outstanding: "bg-green-600",
-        Satisfactory: "bg-emerald-600",
-        Good: "bg-yellow-400 text-black",
-        Average: "bg-orange-500",
-        Poor: "bg-red-500",
-    }
-
-    const rankedData = countyData
-        .map((item: any) => ({
-            name: item.name || item.county || "Unknown",
-            score: Number(item.score ?? 0),
-        }))
-        .filter((item: any) => typeof item.name === "string" && item.score > 0)
-        .sort((a: any, b: any) => b.score - a.score)
-        .map((item: any, index: number) => ({
-            ...item,
-            rank: index + 1
-        }))
-        .slice(0, 10)
 
     return (
         <main>
@@ -138,32 +117,9 @@ export default function ThematicAreaPage() {
 
             <section className="py-12 md:py-16 bg-slate-50">
                 <div className="max-w-7xl mx-auto px-4 md:px-6">
-                    <div className="flex gap-3 mb-6">
-                        <button
-                            onClick={() => setActiveTab("water")}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-colors ${
-                                activeTab === "water"
-                                    ? "bg-slate-900 text-white"
-                                    : "bg-slate-200 text-slate-700 hover:bg-slate-300"
-                            }`}
-                        >
-                            Water Management
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("waste")}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-colors ${
-                                activeTab === "waste"
-                                    ? "bg-slate-900 text-white"
-                                    : "bg-slate-200 text-slate-700 hover:bg-slate-300"
-                            }`}
-                        >
-                            Waste Management
-                        </button>
-                    </div>
-
                     <h2 className="text-3xl font-bold mb-6">County Performance: {thematicArea.name}</h2>
 
-                    {indicators.length > 0 && (
+                    {indicators.length > 0 ? (
                         <div className="mb-8">
                             <h3 className="text-xl font-semibold mb-4">Indicators ({indicators.length})</h3>
                             <div className="bg-white rounded-lg shadow p-6">
@@ -176,50 +132,33 @@ export default function ThematicAreaPage() {
                                 </ul>
                             </div>
                         </div>
+                    ) : (
+                        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+                            <p className="text-blue-800">
+                                <strong>No indicators yet.</strong> This thematic area doesn't have any indicators assigned. 
+                                Add indicators through the Indicators management page.
+                            </p>
+                        </div>
                     )}
 
-                    {rankedData.length > 0 ? (
-                        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead className="bg-slate-50 border-b">
-                                        <tr>
-                                            <th className="px-6 py-4 text-left font-semibold">Rank</th>
-                                            <th className="px-6 py-4 text-left font-semibold">County</th>
-                                            <th className="px-6 py-4 text-center font-semibold">Score</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {rankedData.map((row: any) => {
-                                            const perf = row.score >= 75 ? "Outstanding" :
-                                                         row.score >= 60 ? "Satisfactory" :
-                                                         row.score >= 45 ? "Good" : "Average"
-                                            return (
-                                                <tr key={row.name} className="border-b hover:bg-slate-50 transition">
-                                                    <td className="px-6 py-4 font-semibold">#{row.rank}</td>
-                                                    <td className="px-6 py-4">
-                                                        <Link
-                                                            to={`/county/${row.name.toLowerCase().replace(/\s+/g, "-")}`}
-                                                            className="text-blue-600 hover:underline font-medium"
-                                                        >
-                                                            {row.name}
-                                                        </Link>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center font-bold">
-                                                        {row.score.toFixed(1)}
-                                                    </td>
-                                                </tr>
-                                            )
-                                        })}
-                                    </tbody>
-                                </table>
+                    <div className="mt-8">
+                        <h3 className="text-2xl font-bold mb-6">County Rankings</h3>
+                        {rankings.length > 0 ? (
+                            <ThematicAreaRankings 
+                                thematicAreaName={thematicArea.name}
+                                loading={false}
+                                data={rankings}
+                                error={null}
+                            />
+                        ) : (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                                <p className="text-yellow-800">
+                                    <strong>No performance data available yet.</strong> This thematic area doesn't have county performance rankings. 
+                                    Performance data will appear here once counties start reporting data for this thematic area.
+                                </p>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            No performance data available for {thematicArea.name} in {activeTab} sector
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </section>
 

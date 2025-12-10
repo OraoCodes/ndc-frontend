@@ -529,6 +529,117 @@ export async function getCountySummaryPerformance(
   }));
 }
 
+/**
+ * Get county rankings by thematic area
+ * @param thematicAreaName - The name of the thematic area (e.g., "Governance & Policy Framework", "MRV", etc.)
+ * @param year - The year to fetch data for (defaults to current year)
+ * @returns Array of counties ranked by their performance in the specified thematic area
+ *          Returns empty array if thematic area doesn't have performance data or is unknown
+ */
+export async function getCountyRankingsByThematicArea(
+  thematicAreaName: string,
+  year: number = new Date().getFullYear()
+): Promise<any[]> {
+  // Map thematic area names to database column names
+  // Only NDC framework thematic areas have corresponding columns in county_performance
+  const thematicAreaMap: Record<string, string> = {
+    'Governance & Policy Framework': 'governance',
+    'Governance': 'governance',
+    'MRV': 'mrv',
+    'Mitigation Actions': 'mitigation',
+    'Mitigation': 'mitigation',
+    'Adaptation & Resilience': 'adaptation',
+    'Adaptation': 'adaptation',
+    'Climate Finance & Investment': 'finance',
+    'Finance & Technology Transfer': 'finance',
+    'Finance & Resource Mobilization': 'finance',
+  };
+
+  const columnName = thematicAreaMap[thematicAreaName];
+  
+  // If thematic area doesn't have a corresponding column in county_performance,
+  // return empty array gracefully (new thematic areas won't have performance data yet)
+  if (!columnName) {
+    console.warn(`Thematic area "${thematicAreaName}" doesn't have performance data in county_performance table. Returning empty rankings.`);
+    return [];
+  }
+
+  // Fetch performance data for both water and waste sectors
+  const { data: waterData, error: waterError } = await supabase
+    .from('county_performance')
+    .select(`
+      ${columnName},
+      county_id,
+      counties(name)
+    `)
+    .eq('sector', 'water')
+    .eq('year', year)
+    .not(columnName, 'is', null)
+    .order(columnName, { ascending: false });
+
+  const { data: wasteData, error: wasteError } = await supabase
+    .from('county_performance')
+    .select(`
+      ${columnName},
+      county_id,
+      counties(name)
+    `)
+    .eq('sector', 'waste')
+    .eq('year', year)
+    .not(columnName, 'is', null)
+    .order(columnName, { ascending: false });
+
+  if (waterError || wasteError) {
+    console.error('Error fetching county rankings by thematic area:', waterError || wasteError);
+    throw waterError || wasteError;
+  }
+
+  // Combine water and waste data by county
+  const countyMap = new Map<string, { name: string; water: number | null; waste: number | null }>();
+
+  (waterData || []).forEach((row: any) => {
+    const countyName = row.counties?.name || 'Unknown';
+    if (!countyMap.has(countyName)) {
+      countyMap.set(countyName, { name: countyName, water: null, waste: null });
+    }
+    countyMap.get(countyName)!.water = row[columnName] || 0;
+  });
+
+  (wasteData || []).forEach((row: any) => {
+    const countyName = row.counties?.name || 'Unknown';
+    if (!countyMap.has(countyName)) {
+      countyMap.set(countyName, { name: countyName, water: null, waste: null });
+    }
+    countyMap.get(countyName)!.waste = row[columnName] || 0;
+  });
+
+  // Convert to array, calculate average, and sort
+  const rankings = Array.from(countyMap.values())
+    .map((county) => {
+      const water = county.water || 0;
+      const waste = county.waste || 0;
+      const avgScore = (water && waste) ? (water + waste) / 2 : (water || waste || 0);
+      
+      return {
+        county: county.name,
+        water: Math.round(water * 10) / 10,
+        wasteMgt: Math.round(waste * 10) / 10,
+        avgScore: Math.round(avgScore * 10) / 10,
+      };
+    })
+    .sort((a, b) => b.avgScore - a.avgScore)
+    .map((county, index) => ({
+      ...county,
+      rank: index + 1,
+      performance: county.avgScore >= 75 ? 'Outstanding' :
+                   county.avgScore >= 60 ? 'Satisfactory' :
+                   county.avgScore >= 45 ? 'Good' :
+                   county.avgScore >= 30 ? 'Average' : 'Poor',
+    }));
+
+  return rankings;
+}
+
 export async function getCountyPerformance(
   countyName: string,
   year: number = new Date().getFullYear()

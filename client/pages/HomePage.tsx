@@ -135,23 +135,10 @@ export default function Home() {
     }
 
     // Map thematic area names from database to their route paths
+    // ALL thematic areas use dynamic slug-based routing - no hardcoded routes
     const getThematicAreaRoute = (areaName: string): string => {
-        // Special mappings for existing routes (by exact name match)
-        const routeMap: Record<string, string> = {
-            'Governance & Policy Framework': '/governance',
-            'Governance': '/governance',
-            'MRV': '/mrv',
-            'Mitigation Actions': '/mitigation',
-            'Mitigation': '/mitigation',
-            'Adaptation & Resilience': '/adaptation',
-            'Adaptation': '/adaptation',
-            'Climate Finance & Investment': '/finance-technology-transfer',
-            'Finance & Resource Mobilization': '/finance-technology-transfer',
-            'Finance & Technology Transfer': '/finance-technology-transfer',
-        };
-        
-        // Return mapped route or use slug-based route
-        return routeMap[areaName] || `/${getThematicAreaSlug(areaName)}`;
+        // Convert thematic area name to URL-friendly slug for dynamic routing
+        return `/${getThematicAreaSlug(areaName)}`;
     }
 
     // Get unique thematic areas (remove duplicates by name, keep one of each)

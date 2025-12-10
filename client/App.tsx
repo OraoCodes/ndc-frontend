@@ -63,12 +63,8 @@ export const App = () => (
             <Route path="/water-management/:countyName" element={<CountyWaterPage />} />
             <Route path="/waste-management" element={<WasteManagement />} />
             <Route path="/waste-management/:countyName" element={<CountyWastePage />} />
-            <Route path="/governance" element={<Governance />} />
-            <Route path="/mrv" element={<MRV />} />
-            <Route path="/mitigation" element={<Mitigation />} />
-            <Route path="/adaptation" element={<Adaptation />} />
-            <Route path="/finance-technology-transfer" element={<FinanceTechnologyTransfer />} />
             <Route path="/about-the-tool" element={<AboutToolPage />} />
+            {/* Dynamic route for ALL thematic areas - must be after specific routes */}
             <Route path="/:thematicAreaSlug" element={<ThematicAreaPage />} />
 
             {/* Protected Routes - Require Authentication */}
