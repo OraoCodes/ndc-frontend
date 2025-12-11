@@ -241,7 +241,7 @@ export default function CountyData() {
     
     return { 
       score: Math.round(normalizedScore), 
-      maxScore: 100,
+      maxScore: Math.round(maxScore), // Return actual sum of indicator weights (e.g., 3×5=15)
       weightedScore: weightedScore,
       weightPercentage: weightPercentage
     };
@@ -319,7 +319,7 @@ export default function CountyData() {
         // Index = (Governance × 30%) + (MRV × 25%) + (Mitigation × 20%) + (Adaptation × 15%) + (Finance × 10%)
         Object.keys(grouped).forEach(thematicArea => {
           const areaIndicators = grouped[thematicArea];
-          const { score, weightedScore, weightPercentage } = calculateThematicAreaScore(
+          const { score, maxScore, weightedScore, weightPercentage } = calculateThematicAreaScore(
             areaIndicators, 
             dataSource, 
             thematicArea,
@@ -327,7 +327,7 @@ export default function CountyData() {
           );
           thematicAreaScores[thematicArea] = { 
             score, 
-            maxScore: 100,
+            maxScore: maxScore,
             weightedScore,
             weightPercentage
           };
