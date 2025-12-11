@@ -58,20 +58,47 @@ export default function IndicatorManagementPage() {
     queryFn: listThematicAreas,
   })
 
-  // Get unique thematic area names (remove duplicates from water/waste)
-  const uniqueThematicAreaNames = Array.from(
-    new Set(thematicAreas?.map(area => area.name) || [])
-  ).sort()
+  // Get thematic areas filtered by sector for Add dialog
+  const getThematicAreasForSector = (sector: "water" | "waste") => {
+    return (thematicAreas || [])
+      .filter(area => area.sector === sector)
+      .map(area => area.name)
+      .sort()
+  }
 
-  // Update newIndicator thematic_area when thematic areas load
+  // Get thematic areas for the currently selected sector in Add dialog
+  const availableThematicAreasForAdd = getThematicAreasForSector(newIndicator.sector)
+
+  // Get thematic areas for the currently selected sector in Edit dialog
+  const availableThematicAreasForEdit = getThematicAreasForSector(editForm.sector)
+
+  // Update newIndicator thematic_area when sector changes or thematic areas load
   useEffect(() => {
-    const uniqueNames = Array.from(
-      new Set(thematicAreas?.map(area => area.name) || [])
-    ).sort()
-    if (uniqueNames.length > 0 && !newIndicator.thematic_area) {
-      setNewIndicator(prev => ({ ...prev, thematic_area: uniqueNames[0] }))
+    const available = getThematicAreasForSector(newIndicator.sector)
+    if (available.length > 0) {
+      // If current selection is not in available list, or empty, select first available
+      if (!available.includes(newIndicator.thematic_area) || !newIndicator.thematic_area) {
+        setNewIndicator(prev => ({ ...prev, thematic_area: available[0] }))
+      }
+    } else {
+      // No thematic areas available for this sector
+      setNewIndicator(prev => ({ ...prev, thematic_area: "" }))
     }
-  }, [thematicAreas, newIndicator.thematic_area])
+  }, [newIndicator.sector, thematicAreas])
+
+  // Update editForm thematic_area when sector changes
+  useEffect(() => {
+    const available = getThematicAreasForSector(editForm.sector)
+    if (available.length > 0) {
+      // If current selection is not in available list, select first available
+      if (!available.includes(editForm.thematic_area)) {
+        setEditForm(prev => ({ ...prev, thematic_area: available[0] }))
+      }
+    } else {
+      // No thematic areas available for this sector
+      setEditForm(prev => ({ ...prev, thematic_area: "" }))
+    }
+  }, [editForm.sector, thematicAreas])
 
   const createMutation = useMutation({
     mutationFn: (payload: {
@@ -84,9 +111,11 @@ export default function IndicatorManagementPage() {
       queryClient.invalidateQueries({ queryKey: ["indicators"] })
       toast({ title: "Success", description: "Indicator added successfully!" })
       setShowAddDialog(false)
+      // Reset to first available thematic area for water sector
+      const waterAreas = getThematicAreasForSector("water")
       setNewIndicator({
         sector: "water",
-        thematic_area: uniqueThematicAreaNames[0] || "",
+        thematic_area: waterAreas[0] || "",
         indicator_text: "",
         description: "",
         weight: 10,
@@ -472,17 +501,17 @@ export default function IndicatorManagementPage() {
                   onChange={(e) =>
                     setNewIndicator({ ...newIndicator, thematic_area: e.target.value })
                   }
-                  disabled={loadingThematicAreas}
+                  disabled={loadingThematicAreas || availableThematicAreasForAdd.length === 0}
                   className="w-full px-4 py-2 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loadingThematicAreas ? (
                     <option>Loading thematic areas...</option>
-                  ) : uniqueThematicAreaNames.length === 0 ? (
-                    <option>No thematic areas available</option>
+                  ) : availableThematicAreasForAdd.length === 0 ? (
+                    <option>No thematic areas available for {newIndicator.sector} sector</option>
                   ) : (
                     <>
                       <option value="">Select thematic area</option>
-                      {uniqueThematicAreaNames.map((area) => (
+                      {availableThematicAreasForAdd.map((area) => (
                         <option key={area} value={area}>
                           {area}
                         </option>
@@ -587,17 +616,17 @@ export default function IndicatorManagementPage() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, thematic_area: e.target.value })
                   }
-                  disabled={loadingThematicAreas}
+                  disabled={loadingThematicAreas || availableThematicAreasForEdit.length === 0}
                   className="w-full px-4 py-2 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loadingThematicAreas ? (
                     <option>Loading thematic areas...</option>
-                  ) : uniqueThematicAreaNames.length === 0 ? (
-                    <option>No thematic areas available</option>
+                  ) : availableThematicAreasForEdit.length === 0 ? (
+                    <option>No thematic areas available for {editForm.sector} sector</option>
                   ) : (
                     <>
                       <option value="">Select thematic area</option>
-                      {uniqueThematicAreaNames.map((area) => (
+                      {availableThematicAreasForEdit.map((area) => (
                         <option key={area} value={area}>
                           {area}
                         </option>

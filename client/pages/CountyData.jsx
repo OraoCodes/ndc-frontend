@@ -50,10 +50,28 @@ export default function CountyData() {
   // Load saved performance data when editing or when year changes
   useEffect(() => {
     const loadPerformanceData = async () => {
+      // Wait for indicators to load before processing
+      if (!indicators || indicators.length === 0) {
+        return;
+      }
+
       if (!editingId || !year) {
         if (!editingId) {
-          setWaterData({});
-          setWasteData({});
+          // Initialize empty data for all indicators when creating new county
+          const initializeEmptyData = (sectorType) => {
+            const emptyData = {};
+            const sectorIndicators = indicators.filter(ind => ind.sector === sectorType);
+            sectorIndicators.forEach(ind => {
+              emptyData[ind.id.toString()] = {
+                response: "",
+                comment: "",
+                score: ""
+              };
+            });
+            return emptyData;
+          };
+          setWaterData(initializeEmptyData("water"));
+          setWasteData(initializeEmptyData("waste"));
           setLastEdited(null);
         }
         return;
@@ -66,34 +84,46 @@ export default function CountyData() {
           getCountyPerformanceByCountyId(editingId, Number(year), "waste").catch(() => null)
         ]);
 
-        const formatIndicatorData = (performance) => {
-          if (!performance || !performance.indicators_json) return {};
-          
-          const savedData = performance.indicators_json;
+        const formatIndicatorData = (performance, sectorType) => {
           const formattedData = {};
           
-          Object.keys(savedData).forEach(key => {
-            const value = savedData[key];
-            if (typeof value === 'object' && value !== null && (value.response !== undefined || value.comment !== undefined || value.score !== undefined)) {
-              formattedData[key] = {
-                response: value.response || "",
-                comment: value.comment || "",
-                score: value.score !== undefined ? value.score : ""
-              };
-            } else {
-              formattedData[key] = {
-                response: value || "",
-                comment: "",
-                score: ""
-              };
-            }
+          // Initialize all indicators for this sector with empty data
+          const sectorIndicators = indicators.filter(ind => ind.sector === sectorType);
+          sectorIndicators.forEach(ind => {
+            const indicatorId = ind.id.toString();
+            formattedData[indicatorId] = {
+              response: "",
+              comment: "",
+              score: ""
+            };
           });
+          
+          // Override with saved data if it exists
+          if (performance && performance.indicators_json) {
+            const savedData = performance.indicators_json;
+            Object.keys(savedData).forEach(key => {
+              const value = savedData[key];
+              if (typeof value === 'object' && value !== null && (value.response !== undefined || value.comment !== undefined || value.score !== undefined)) {
+                formattedData[key] = {
+                  response: value.response || "",
+                  comment: value.comment || "",
+                  score: value.score !== undefined ? value.score : ""
+                };
+              } else {
+                formattedData[key] = {
+                  response: value || "",
+                  comment: "",
+                  score: ""
+                };
+              }
+            });
+          }
           
           return formattedData;
         };
 
-        setWaterData(formatIndicatorData(waterPerformance));
-        setWasteData(formatIndicatorData(wastePerformance));
+        setWaterData(formatIndicatorData(waterPerformance, "water"));
+        setWasteData(formatIndicatorData(wastePerformance, "waste"));
         
         // Use the most recent update time
         const waterTime = waterPerformance?.updated_at || waterPerformance?.created_at;
@@ -113,7 +143,7 @@ export default function CountyData() {
     };
 
     loadPerformanceData();
-  }, [editingId, year]);
+  }, [editingId, year, indicators]);
 
   useEffect(() => {
     if (existingCounty) {
@@ -256,7 +286,7 @@ export default function CountyData() {
           const res = await createCounty({ 
             name: county.trim()
           });
-          countyId = res.id;
+        countyId = res.id;
         } catch (err) {
           const error = err || {};
           if (error?.code === '23505' || error?.message?.includes('duplicate') || error?.message?.includes('unique')) {
@@ -318,9 +348,9 @@ export default function CountyData() {
           };
         });
 
-        await saveCountyPerformance(
-          countyId,
-          Number(year),
+      await saveCountyPerformance(
+        countyId,
+        Number(year),
           sectorType,
           {
             overall_score: sectorIndex, // Sector index (will be combined later for overall)
@@ -330,9 +360,9 @@ export default function CountyData() {
             mitigation: thematicAreaScores["Mitigation Actions"]?.score || thematicAreaScores["Mitigation"]?.score || 0,
             adaptation: thematicAreaScores["Adaptation & Resilience"]?.score || thematicAreaScores["Adaptation"]?.score || 0,
             finance: thematicAreaScores["Climate Finance & Investment"]?.score || thematicAreaScores["Finance"]?.score || 0,
-            indicators_json: indicatorsJson,
-          }
-        );
+          indicators_json: indicatorsJson,
+        }
+      );
         
         return sectorIndex;
       };
@@ -517,8 +547,8 @@ export default function CountyData() {
             const areaIndicators = groupedIndicators("water")[thematicArea];
             const { score, maxScore } = calculateThematicAreaScore(areaIndicators, waterData, thematicArea, "water");
             const isExpanded = isSectionExpanded("water", thematicArea);
-            
-            return (
+
+          return (
               <div key={thematicArea} className="border border-border rounded-lg overflow-hidden bg-white">
                 <button
                   onClick={() => toggleSection("water", thematicArea)}
@@ -580,9 +610,9 @@ export default function CountyData() {
                                 />
                               </td>
                               <td className="px-2 sm:px-4 py-2 sm:py-3">
-                                <input
-                                  type="number"
-                                  min="0"
+                        <input
+                          type="number"
+                          min="0"
                                   step="0.1"
                                   value={data.score !== undefined && data.score !== null && data.score !== "" ? data.score : Math.round(score)}
                                   onChange={(e) => updateIndicatorData(indicatorId, "score", e.target.value, "water")}
@@ -594,8 +624,8 @@ export default function CountyData() {
                         })}
                       </tbody>
                     </table>
-                  </div>
-                )}
+                      </div>
+                    )}
               </div>
             );
           })}
@@ -671,12 +701,12 @@ export default function CountyData() {
                                 />
                               </td>
                               <td className="px-2 sm:px-4 py-2 sm:py-3">
-                                <input
-                                  type="number"
+                      <input
+                        type="number"
                                   min="0"
                                   step="0.1"
                                   value={data.score !== undefined && data.score !== null && data.score !== "" ? data.score : Math.round(score)}
-                                  onChange={(e) => updateIndicatorData(indicatorId, "score", e.target.value, "water")}
+                                  onChange={(e) => updateIndicatorData(indicatorId, "score", e.target.value, "waste")}
                                   className="w-20 px-2 py-1.5 border border-input rounded text-center text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                                 />
                               </td>
@@ -687,9 +717,9 @@ export default function CountyData() {
                     </table>
                   </div>
                 )}
-              </div>
-            );
-          })}
+            </div>
+          );
+        })}
         </div>
 
         {/* Save Button */}
