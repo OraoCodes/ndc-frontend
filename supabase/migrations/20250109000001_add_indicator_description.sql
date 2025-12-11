@@ -16,3 +16,4 @@ ADD COLUMN IF NOT EXISTS description TEXT;
 -- Optional: Add index if you plan to search by description
 -- CREATE INDEX IF NOT EXISTS idx_indicators_description ON indicators USING gin(to_tsvector('english', description));
 
+

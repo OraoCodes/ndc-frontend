@@ -7,223 +7,138 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { IndicatorSection } from "@/components/indicator-section"
 import { Loader2 } from "lucide-react"
-import { listCounties, getCountyPerformance } from "@/lib/supabase-api"
+import { listCounties, getCountyPerformance, listIndicators, listThematicAreas } from "@/lib/supabase-api"
 
-// ──────────────────────────────────────────────────────────────
-// ALL 62 OFFICIAL INDICATORS (EXACT TEXT FROM YOUR DOCUMENT)
-// ──────────────────────────────────────────────────────────────
-const WATER_INDICATORS = {
-  governance: [
-    "Water sector policy aligned with NDCs or county climate action plan exists",
-    "Climate change coordination unit or committee established",
-    "% of water department staff trained in climate-related planning",
-    "Climate targets included in county performance contracts",
-    "Climate goals integrated into County Integrated Development Plan (CIDP)",
-    "Stakeholder participation mechanism established (public forums, workshops)",
-  ],
-  mrv: [
-    "MRV system for water sector NDC tracking in place",
-    "Frequency of data updates for water indicators",
-    "% of water-related indicators with available data",
-    "Water sector emission inventory completed",
-    "County submits water data to national MRV system",
-    "Verification mechanism for water data in place",
-  ],
-  mitigation: [
-    "GHG emission reduction target for water sector exists",
-    "Annual GHG reduction achieved in water sector (%)",
-    "Renewable energy share in water supply/pumping",
-    "Water efficiency or conservation programs implemented",
-    "Leakage reduction or non-revenue water targets met",
-    "Climate-smart water infrastructure projects active",
-  ],
-  adaptation: [
-    "Climate risk and vulnerability assessment for water conducted",
-    "% population with access to climate-resilient water infrastructure",
-    "Drought early warning system operational",
-    "Flood response protocols for water systems in place",
-    "Ecosystem restoration (watersheds, wetlands) supported",
-    "Number of water storage/reservoirs for drought resilience",
-  ],
-  finance: [
-    "Dedicated climate budget line for water sector exists",
-    "% of county budget allocated to climate-resilient water projects",
-    "Amount of climate finance mobilized for water (KES)",
-    "Access to international climate funds (GCF, AF, etc.)",
-    "Private sector participation in water resilience projects",
-    "Budget absorption rate for water-related climate funds",
-  ],
-} as const
+interface Indicator {
+  id: number;
+  sector: 'water' | 'waste';
+  thematic_area: string;
+  indicator_text: string;
+  description?: string;
+  weight?: number;
+}
 
-const WASTE_INDICATORS = {
-  governance: [
-    "Waste management policy aligned with NDCs or county climate plan exists",
-    "Waste collection and disposal by-laws enforced",
-    "Climate change coordination includes waste sector",
-    "Climate targets in performance contracts include waste",
-    "Waste goals integrated into CIDP",
-    "Public participation in waste planning established",
-  ],
-  mrv: [
-    "MRV system for waste sector NDC tracking in place",
-    "Waste generation and treatment data updated regularly",
-    "% of waste indicators with available data",
-    "Waste sector GHG emission inventory completed",
-    "County submits waste data to national MRV system",
-    "Third-party verification of waste data in place",
-  ],
-  mitigation: [
-    "Methane reduction or GHG reduction target for waste sector exists",
-    "Waste diverted from landfill through recycling/composting (%)",
-    "Landfill gas capture or biogas project active",
-    "Circular economy initiatives launched (e.g., reuse, upcycling)",
-    "Composting or organic waste treatment facilities operational",
-    "Waste-to-energy or anaerobic digestion project active",
-  ],
-  adaptation: [
-    "Climate risk assessment includes waste infrastructure",
-    "Flood-resistant waste facilities or transfer stations built",
-    "Contingency plans for waste service during disasters",
-    "Community-led waste resilience programs supported",
-    "Illegal dumping hotspots reduced due to climate planning",
-  ],
-  finance: [
-    "Dedicated climate budget line for waste management exists",
-    "% of county budget allocated to climate-smart waste projects",
-    "Revenue from waste services used for climate projects",
-    "Climate finance accessed for waste (donors, PPPs, GCF)",
-    "Private sector investment in waste infrastructure",
-    "Cost recovery mechanism from waste services implemented",
-  ],
-} as const
+interface ThematicArea {
+  id: number;
+  name: string;
+  sector: 'water' | 'waste';
+  weight_percentage: number;
+}
+
+interface IndicatorItem {
+  no: number;
+  indicator: string;
+  description: string;
+  score: number;
+}
 
 export default function CountyPage() {
   const { countyName = "" } = useParams<{ countyName: string }>()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [indicators, setIndicators] = useState<Indicator[]>([])
+  const [thematicAreas, setThematicAreas] = useState<ThematicArea[]>([])
 
-  // Indicator ID to label mapping (from CountyData.jsx)
-  const INDICATOR_MAP: Record<string, { label: string; type: string; pillar: string; options?: string[]; scores?: number[] }> = {
-    // Governance
-    "g1": { label: "Relevant sector policy aligned with NDCs exists", type: "yesno", pillar: "Governance" },
-    "g2": { label: "% of staff trained in climate-related planning", type: "percent", pillar: "Governance" },
-    "g3": { label: "Climate targets in county performance contracts", type: "yesno", pillar: "Governance" },
-    "g4": { label: "Climate goals in County Integrated Development Plan (CIDP)", type: "yesno", pillar: "Governance" },
-    "g5": { label: "Stakeholder participation mechanism established", type: "yesno", pillar: "Governance" },
-    "g6": { label: "Coordination mechanism established (committees, MoUs)", type: "yesno", pillar: "Governance" },
-    // MRV
-    "m1": { label: "MRV system for NDC tracking exists", type: "yesno", pillar: "MRV" },
-    "m2": { label: "Frequency of data updates", type: "select", pillar: "MRV", options: ["Never", "Annually", "Quarterly", "Monthly"], scores: [0, 3, 4, 5] },
-    "m3": { label: "% of indicators with available data", type: "percent", pillar: "MRV" },
-    "m4": { label: "Sector emission inventories available", type: "yesno", pillar: "MRV" },
-    "m5": { label: "County submits reports to national MRV system", type: "yesno", pillar: "MRV" },
-    "m6": { label: "Verification mechanism in place", type: "yesno", pillar: "MRV" },
-    // Mitigation
-    "mit1": { label: "GHG emission reduction target exists", type: "yesno", pillar: "Mitigation" },
-    "mit2": { label: "Annual GHG reduction achieved (%)", type: "percent", pillar: "Mitigation" },
-    "mit3": { label: "Renewable energy share in sector (%)", type: "percent", pillar: "Mitigation" },
-    "mit4": { label: "Waste diverted from landfill (%)", type: "percent", pillar: "Mitigation" },
-    "mit5": { label: "Methane capture systems in use", type: "yesno", pillar: "Mitigation" },
-    "mit6": { label: "Circular economy initiatives adopted", type: "yesno", pillar: "Mitigation" },
-    // Adaptation
-    "a1": { label: "Climate risk assessment conducted", type: "yesno", pillar: "Adaptation" },
-    "a2": { label: "% population with resilient infrastructure", type: "percent", pillar: "Adaptation" },
-    "a3": { label: "Early warning systems operational (count)", type: "number", pillar: "Adaptation" },
-    "a4": { label: "Ecosystem restoration area (hectares)", type: "number", pillar: "Adaptation" },
-    "a5": { label: "Drought/flood response protocols in place", type: "yesno", pillar: "Adaptation" },
-    // Finance
-    "f1": { label: "Climate budget line exists", type: "yesno", pillar: "Finance" },
-    "f2": { label: "Climate budget allocation (% of total)", type: "percent", pillar: "Finance" },
-    "f3": { label: "Climate finance mobilized (KES millions)", type: "number", pillar: "Finance" },
-    "f4": { label: "Access to international climate finance", type: "yesno", pillar: "Finance" },
-    "f5": { label: "Private sector participation in climate action", type: "yesno", pillar: "Finance" },
-  };
-
-  // Calculate score from raw value based on indicator type
-  const calculateScore = (value: any, indicatorDef: { type: string; options?: string[]; scores?: number[] }): number => {
-    if (!value || value === "") return 0;
+  // Calculate score for a single indicator based on response or use saved score
+  const calculateIndicatorScore = (indicator: Indicator, response: string, savedScore: string | number | undefined): number => {
+    // If there's a saved score, use it (editable score takes precedence)
+    if (savedScore !== undefined && savedScore !== null && savedScore !== "") {
+      const scoreValue = parseFloat(String(savedScore));
+      if (!isNaN(scoreValue)) {
+        return Math.max(0, Math.min(scoreValue, indicator.weight || 10)); // Clamp between 0 and max weight
+      }
+    }
     
-    if (indicatorDef.type === "yesno") {
-      return value === "yes" ? 10 : 0;
+    // Otherwise, calculate from response
+    if (!response || response === "") return 0;
+    
+    // For now, use weight as max score and calculate based on response type
+    const maxScore = indicator.weight || 10;
+    
+    // If response is a number (percentage or count), calculate proportional score
+    if (!isNaN(parseFloat(response))) {
+      const numValue = parseFloat(response);
+      // For percentages, divide by 10 to get score out of 10
+      if (String(response).includes('%')) {
+        return Math.min((numValue / 10) * (maxScore / 10), maxScore);
+      }
+      // For other numbers, use a scaling factor
+      return Math.min((numValue / 100) * maxScore, maxScore);
     }
-    if (indicatorDef.type === "percent") {
-      return Math.min(parseFloat(value) || 0, 100) / 10;
+    
+    // For yes/no responses
+    if (response.toLowerCase() === "yes" || response.toLowerCase() === "y") {
+      return maxScore;
     }
-    if (indicatorDef.type === "number") {
-      return Math.min((parseFloat(value) || 0) / 100, 10);
+    if (response.toLowerCase() === "no" || response.toLowerCase() === "n") {
+      return 0;
     }
-    if (indicatorDef.type === "select" && indicatorDef.options && indicatorDef.scores) {
-      const idx = indicatorDef.options.indexOf(value);
-      return idx >= 0 ? (indicatorDef.scores[idx] || 0) : 0;
-    }
+    
     return 0;
   };
 
-  // Map flat indicator array → official grouped structure with real scores
-  const mapIndicators = (rawIndicators: any, officialGroups: typeof WATER_INDICATORS) => {
-    // Ensure rawIndicators is an array
-    let indicatorsArray: any[] = [];
+  // Group indicators by sector and thematic area
+  const groupIndicatorsByThematicArea = (sectorType: 'water' | 'waste', indicatorsData: Record<string, any>, allIndicators: Indicator[]) => {
+    const grouped: Record<string, IndicatorItem[]> = {};
     
-    if (Array.isArray(rawIndicators)) {
-      indicatorsArray = rawIndicators;
-    } else if (rawIndicators && typeof rawIndicators === 'object') {
-      // Convert object format { "g1": "value", "g2": "value" } to array format with calculated scores
-      indicatorsArray = Object.entries(rawIndicators)
-        .filter(([key]) => INDICATOR_MAP[key]) // Only include known indicator IDs
-        .map(([key, value]) => {
-          const indicatorDef = INDICATOR_MAP[key];
-          const score = calculateScore(value, indicatorDef);
-          return {
-            indicator: indicatorDef.label,
-            score: score,
-            description: value ? "Data recorded" : "Data not yet entered.",
-            rawValue: value
-          };
-        });
-    }
+    // Get all indicators for this sector
+    const sectorIndicators = allIndicators.filter(ind => ind.sector === sectorType);
     
-    const scoreMap = new Map(indicatorsArray.map(i => [i.indicator.toLowerCase(), i]))
-
-    const buildCategory = (officialList: readonly string[]) => {
-      return officialList.map((officialText, i) => {
-        // Find best match by substring (very reliable)
-        // Try multiple matching strategies for better accuracy
-        const officialLower = officialText.toLowerCase();
-        const match = Array.from(scoreMap.entries()).find(([key, item]) => {
-          const keyLower = key.toLowerCase();
-          // Strategy 1: Check if key contains significant words from official text
-          const officialWords = officialLower.split(/\s+/).filter(w => w.length > 4);
-          const keyWords = keyLower.split(/\s+/).filter(w => w.length > 4);
-          const hasCommonWords = officialWords.some(w => keyWords.includes(w)) || 
-                                  keyWords.some(w => officialWords.includes(w));
-          
-          // Strategy 2: Substring matching (original)
-          const substringMatch = keyLower.includes(officialLower.slice(0, 30)) ||
-                                 officialLower.includes(keyLower.slice(0, 30));
-          
-          return hasCommonWords || substringMatch;
-        })
-
-        const realItem = match ? match[1] : null
-
-        return {
-          no: i + 1,
-          indicator: officialText,
-          description: realItem ? (realItem.description || "Data recorded") : "Data not yet entered.",
-          score: realItem ? Math.round(Number(realItem.score || 0)) : 0,
-        }
-      })
-    }
-
-    return {
-      governance: buildCategory(officialGroups.governance),
-      mrv: buildCategory(officialGroups.mrv),
-      mitigation: buildCategory(officialGroups.mitigation),
-      adaptation: buildCategory(officialGroups.adaptation),
-      finance: buildCategory(officialGroups.finance),
-    }
-  }
+    // Group by thematic area
+    sectorIndicators.forEach((ind) => {
+      const thematicArea = ind.thematic_area || "Other";
+      if (!grouped[thematicArea]) {
+        grouped[thematicArea] = [];
+      }
+      
+      // Get saved data for this indicator
+      const indicatorId = ind.id.toString();
+      const savedData = indicatorsData[indicatorId] || { response: "", comment: "", score: "" };
+      
+      // Calculate score
+      const score = calculateIndicatorScore(ind, savedData.response || "", savedData.score);
+      
+      grouped[thematicArea].push({
+        no: grouped[thematicArea].length + 1,
+        indicator: ind.indicator_text,
+        description: savedData.comment || ind.description || "Data not yet entered.",
+        score: score,
+      });
+    });
+    
+    // Sort thematic areas by their order (Governance, MRV, Mitigation, Adaptation, Finance)
+    const thematicAreaOrder = ["Governance & Policy Framework", "MRV", "Mitigation Actions", "Adaptation & Resilience", "Climate Finance & Investment"];
+    const sortedGrouped: Record<string, IndicatorItem[]> = {};
+    
+    // First add thematic areas in order
+    thematicAreaOrder.forEach(areaName => {
+      const matchingArea = Object.keys(grouped).find(name => 
+        name.toLowerCase().includes(areaName.toLowerCase().split(' ')[0]) ||
+        areaName.toLowerCase().includes(name.toLowerCase().split(' ')[0])
+      );
+      if (matchingArea && grouped[matchingArea]) {
+        // Reset numbering for each thematic area
+        sortedGrouped[matchingArea] = grouped[matchingArea].map((item, idx) => ({
+          ...item,
+          no: idx + 1
+        }));
+      }
+    });
+    
+    // Then add any remaining thematic areas
+    Object.keys(grouped).forEach(areaName => {
+      if (!sortedGrouped[areaName]) {
+        // Reset numbering for each thematic area
+        sortedGrouped[areaName] = grouped[areaName].map((item, idx) => ({
+          ...item,
+          no: idx + 1
+        }));
+      }
+    });
+    
+    return sortedGrouped;
+  };
 
   useEffect(() => {
     const loadCounty = async () => {
@@ -235,17 +150,26 @@ export default function CountyPage() {
         setLoading(true)
         setError(null)
 
-        // 1. Validate county exists
+        // 1. Fetch indicators and thematic areas
+        const [allIndicators, allThematicAreas] = await Promise.all([
+          listIndicators(),
+          listThematicAreas()
+        ]);
+        
+        setIndicators(allIndicators);
+        setThematicAreas(allThematicAreas);
+
+        // 2. Validate county exists
         const counties = await listCounties()
         const county = counties.find((c: any) => c.name.toLowerCase() === urlName.toLowerCase())
         if (!county) throw new Error(`County "${urlName}" not found in database`)
 
-        // 2. Fetch real performance data
+        // 3. Fetch real performance data
         const perf = await getCountyPerformance(county.name, 2025)
 
-        // 3. Transform flat arrays → grouped with real scores
-        const water = mapIndicators(perf.waterIndicators, WATER_INDICATORS)
-        const waste = mapIndicators(perf.wasteIndicators, WASTE_INDICATORS)
+        // 4. Group indicators by thematic area for water and waste
+        const waterGrouped = groupIndicatorsByThematicArea('water', perf.waterIndicators || {}, allIndicators);
+        const wasteGrouped = groupIndicatorsByThematicArea('waste', perf.wasteIndicators || {}, allIndicators);
 
         setData({
           name: perf.county || county.name,
@@ -259,8 +183,8 @@ export default function CountyPage() {
             adaptation: perf.indicators?.adaptation || "0.0",
             finance: perf.indicators?.finance || "0.0",
           },
-          water,
-          waste,
+          water: waterGrouped,
+          waste: wasteGrouped,
         })
       } catch (err: any) {
         console.error("Load failed:", err)
@@ -296,7 +220,7 @@ export default function CountyPage() {
     )
   }
 
-  // MAIN PAGE — YOUR BEAUTIFUL UI (unchanged)
+  // MAIN PAGE — YOUR BEAUTIFUL UI
   return (
     <div className="min-h-screen bg-gray-50">
       <Header currentPage="county" />
@@ -392,20 +316,34 @@ export default function CountyPage() {
         <div className="mt-20 space-y-20">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-10">Water Management Indicators</h2>
-            <IndicatorSection title="Governance" indicators={data.water.governance} defaultOpen={true} />
-            <IndicatorSection title="MRV" indicators={data.water.mrv} />
-            <IndicatorSection title="Mitigation" indicators={data.water.mitigation} />
-            <IndicatorSection title="Adaptation & Resilience" indicators={data.water.adaptation} />
-            <IndicatorSection title="Finance & Technology Transfer" indicators={data.water.finance} />
+            {Object.keys(data.water).length > 0 ? (
+              Object.entries(data.water).map(([thematicAreaName, indicators]: [string, any]) => (
+                <IndicatorSection 
+                  key={thematicAreaName} 
+                  title={thematicAreaName} 
+                  indicators={indicators} 
+                  defaultOpen={thematicAreaName.toLowerCase().includes('governance')}
+                />
+              ))
+            ) : (
+              <p className="text-gray-600 py-8">No indicators available for water management yet.</p>
+            )}
           </div>
 
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-10">Waste Management Indicators</h2>
-            <IndicatorSection title="Governance" indicators={data.waste.governance} />
-            <IndicatorSection title="MRV" indicators={data.waste.mrv} defaultOpen={true} />
-            <IndicatorSection title="Mitigation" indicators={data.waste.mitigation} />
-            <IndicatorSection title="Adaptation & Resilience" indicators={data.waste.adaptation} />
-            <IndicatorSection title="Finance & Technology Transfer" indicators={data.waste.finance} />
+            {Object.keys(data.waste).length > 0 ? (
+              Object.entries(data.waste).map(([thematicAreaName, indicators]: [string, any]) => (
+                <IndicatorSection 
+                  key={thematicAreaName} 
+                  title={thematicAreaName} 
+                  indicators={indicators} 
+                  defaultOpen={false}
+                />
+              ))
+            ) : (
+              <p className="text-gray-600 py-8">No indicators available for waste management yet.</p>
+            )}
           </div>
         </div>
       </div>

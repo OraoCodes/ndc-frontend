@@ -28,3 +28,4 @@ CREATE INDEX IF NOT EXISTS idx_thematic_areas_sector ON thematic_areas(sector);
 -- Note: You may want to manually update existing thematic areas to assign sectors
 -- This migration just adds the columns without breaking existing data
 
+
