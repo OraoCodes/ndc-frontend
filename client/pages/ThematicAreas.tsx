@@ -153,58 +153,107 @@ export default function ThematicAreas() {
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="text-3xl font-bold text-foreground">Thematic Areas</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Thematic Areas</h2>
           <button
             onClick={() => setShowAddDialog(true)}
-            className="flex items-center justify-center gap-2 px-5 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-medium shadow-lg"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-medium shadow-lg text-sm sm:text-base w-full sm:w-auto"
           >
-            <Plus size={20} />
+            <Plus size={18} className="sm:w-5 sm:h-5" />
             Add New
           </button>
         </div>
 
         {/* WATER MANAGEMENT Section */}
         <div className="space-y-4">
-          <div className="bg-sidebar text-sidebar-foreground py-4 px-6 rounded-t-lg">
-            <h3 className="text-lg font-bold uppercase">WATER MANAGEMENT</h3>
+          <div className="bg-sidebar text-sidebar-foreground py-3 sm:py-4 px-4 sm:px-6 rounded-t-lg">
+            <h3 className="text-base sm:text-lg font-bold uppercase">WATER MANAGEMENT</h3>
           </div>
           <div className="bg-white rounded-b-lg border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-border">
+              {isLoading && (
+                <div className="py-6 px-4 text-center text-muted-foreground">Loading...</div>
+              )}
+              {isError && (
+                <div className="py-6 px-4 text-center text-destructive">Error: {(error as Error)?.message}</div>
+              )}
+              {waterAreas.length === 0 && !isLoading && (
+                <div className="py-6 px-4 text-center text-muted-foreground">No thematic areas found for Water Management.</div>
+              )}
+              {waterAreas.map((area) => (
+                <div key={area.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <h4 className="text-foreground font-semibold text-sm flex-1 pr-2">{area.name}</h4>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <button
+                        onClick={() => handleEditClick(area)}
+                        className="text-primary hover:text-primary/80 font-medium text-xs underline transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete thematic area "${area.name}"?`)) {
+                            deleteMutation.mutate(area.id);
+                          }
+                        }}
+                        className="text-destructive hover:text-destructive/80 font-medium text-xs underline transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Weight:</span>
+                      <span className="ml-2 text-foreground font-medium">{area.weight_percentage || 0}%</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Indicators:</span>
+                      <span className="ml-2 text-foreground font-medium">{area.indicator_count || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="bg-muted/50 border-b border-border">
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">THEMATIC AREA</th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">WEIGHT %</th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">NO OF INDICATORS</th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">OPERATION</th>
+                    <th className="text-left py-4 px-4 lg:px-6 font-semibold text-foreground text-xs sm:text-sm uppercase tracking-wider">THEMATIC AREA</th>
+                    <th className="text-left py-4 px-4 lg:px-6 font-semibold text-foreground text-xs sm:text-sm uppercase tracking-wider">WEIGHT %</th>
+                    <th className="text-left py-4 px-4 lg:px-6 font-semibold text-foreground text-xs sm:text-sm uppercase tracking-wider">NO OF INDICATORS</th>
+                    <th className="text-left py-4 px-4 lg:px-6 font-semibold text-foreground text-xs sm:text-sm uppercase tracking-wider">OPERATION</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading && (
                     <tr>
-                      <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">Loading...</td>
+                      <td colSpan={4} className="py-6 px-4 lg:px-6 text-center text-muted-foreground">Loading...</td>
                     </tr>
                   )}
                   {isError && (
                     <tr>
-                      <td colSpan={4} className="py-6 px-6 text-center text-destructive">Error: {(error as Error)?.message}</td>
+                      <td colSpan={4} className="py-6 px-4 lg:px-6 text-center text-destructive">Error: {(error as Error)?.message}</td>
                     </tr>
                   )}
                   {waterAreas.length === 0 && !isLoading && (
                     <tr>
-                      <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">No thematic areas found for Water Management.</td>
+                      <td colSpan={4} className="py-6 px-4 lg:px-6 text-center text-muted-foreground">No thematic areas found for Water Management.</td>
                     </tr>
                   )}
                   {waterAreas.map((area) => (
                     <tr key={area.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                      <td className="py-4 px-6 text-foreground text-sm font-medium">{area.name}</td>
-                      <td className="py-4 px-6 text-foreground text-sm">{area.weight_percentage || 0}</td>
-                      <td className="py-4 px-6 text-foreground text-sm">{area.indicator_count || 0}</td>
-                      <td className="py-4 px-6 text-sm">
-                        <div className="flex items-center gap-4">
+                      <td className="py-4 px-4 lg:px-6 text-foreground text-sm font-medium">{area.name}</td>
+                      <td className="py-4 px-4 lg:px-6 text-foreground text-sm">{area.weight_percentage || 0}</td>
+                      <td className="py-4 px-4 lg:px-6 text-foreground text-sm">{area.indicator_count || 0}</td>
+                      <td className="py-4 px-4 lg:px-6 text-sm">
+                        <div className="flex items-center gap-3 lg:gap-4">
                           <button
                             onClick={() => handleEditClick(area)}
-                            className="text-primary hover:text-primary/80 font-medium underline transition"
+                            className="text-primary hover:text-primary/80 font-medium underline transition text-xs sm:text-sm"
                           >
                             Edit
                           </button>
@@ -214,7 +263,7 @@ export default function ThematicAreas() {
                                 deleteMutation.mutate(area.id);
                               }
                             }}
-                            className="text-destructive hover:text-destructive/80 font-medium underline transition"
+                            className="text-destructive hover:text-destructive/80 font-medium underline transition text-xs sm:text-sm"
                           >
                             Delete
                           </button>
@@ -230,36 +279,79 @@ export default function ThematicAreas() {
 
         {/* WASTE MANAGEMENT Section */}
         <div className="space-y-4">
-          <div className="bg-sidebar text-sidebar-foreground py-4 px-6 rounded-t-lg">
-            <h3 className="text-lg font-bold uppercase">WASTE MANAGEMENT</h3>
+          <div className="bg-sidebar text-sidebar-foreground py-3 sm:py-4 px-4 sm:px-6 rounded-t-lg">
+            <h3 className="text-base sm:text-lg font-bold uppercase">WASTE MANAGEMENT</h3>
           </div>
           <div className="bg-white rounded-b-lg border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-border">
+              {wasteAreas.length === 0 && !isLoading && (
+                <div className="py-6 px-4 text-center text-muted-foreground">No thematic areas found for Waste Management.</div>
+              )}
+              {wasteAreas.map((area) => (
+                <div key={area.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <h4 className="text-foreground font-semibold text-sm flex-1 pr-2">{area.name}</h4>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <button
+                        onClick={() => handleEditClick(area)}
+                        className="text-primary hover:text-primary/80 font-medium text-xs underline transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete thematic area "${area.name}"?`)) {
+                            deleteMutation.mutate(area.id);
+                          }
+                        }}
+                        className="text-destructive hover:text-destructive/80 font-medium text-xs underline transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Weight:</span>
+                      <span className="ml-2 text-foreground font-medium">{area.weight_percentage || 0}%</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Indicators:</span>
+                      <span className="ml-2 text-foreground font-medium">{area.indicator_count || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="bg-muted/50 border-b border-border">
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">THEMATIC AREA</th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">WEIGHT %</th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">NO OF INDICATORS</th>
-                    <th className="text-left py-4 px-6 font-semibold text-foreground text-sm uppercase tracking-wider">OPERATION</th>
+                    <th className="text-left py-4 px-4 lg:px-6 font-semibold text-foreground text-xs sm:text-sm uppercase tracking-wider">THEMATIC AREA</th>
+                    <th className="text-left py-4 px-4 lg:px-6 font-semibold text-foreground text-xs sm:text-sm uppercase tracking-wider">WEIGHT %</th>
+                    <th className="text-left py-4 px-4 lg:px-6 font-semibold text-foreground text-xs sm:text-sm uppercase tracking-wider">NO OF INDICATORS</th>
+                    <th className="text-left py-4 px-4 lg:px-6 font-semibold text-foreground text-xs sm:text-sm uppercase tracking-wider">OPERATION</th>
                   </tr>
                 </thead>
                 <tbody>
                   {wasteAreas.length === 0 && !isLoading && (
                     <tr>
-                      <td colSpan={4} className="py-6 px-6 text-center text-muted-foreground">No thematic areas found for Waste Management.</td>
+                      <td colSpan={4} className="py-6 px-4 lg:px-6 text-center text-muted-foreground">No thematic areas found for Waste Management.</td>
                     </tr>
                   )}
                   {wasteAreas.map((area) => (
                     <tr key={area.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                      <td className="py-4 px-6 text-foreground text-sm font-medium">{area.name}</td>
-                      <td className="py-4 px-6 text-foreground text-sm">{area.weight_percentage || 0}</td>
-                      <td className="py-4 px-6 text-foreground text-sm">{area.indicator_count || 0}</td>
-                      <td className="py-4 px-6 text-sm">
-                        <div className="flex items-center gap-4">
+                      <td className="py-4 px-4 lg:px-6 text-foreground text-sm font-medium">{area.name}</td>
+                      <td className="py-4 px-4 lg:px-6 text-foreground text-sm">{area.weight_percentage || 0}</td>
+                      <td className="py-4 px-4 lg:px-6 text-foreground text-sm">{area.indicator_count || 0}</td>
+                      <td className="py-4 px-4 lg:px-6 text-sm">
+                        <div className="flex items-center gap-3 lg:gap-4">
                           <button
                             onClick={() => handleEditClick(area)}
-                            className="text-primary hover:text-primary/80 font-medium underline transition"
+                            className="text-primary hover:text-primary/80 font-medium underline transition text-xs sm:text-sm"
                           >
                             Edit
                           </button>
@@ -269,7 +361,7 @@ export default function ThematicAreas() {
                                 deleteMutation.mutate(area.id);
                               }
                             }}
-                            className="text-destructive hover:text-destructive/80 font-medium underline transition"
+                            className="text-destructive hover:text-destructive/80 font-medium underline transition text-xs sm:text-sm"
                           >
                             Delete
                           </button>
