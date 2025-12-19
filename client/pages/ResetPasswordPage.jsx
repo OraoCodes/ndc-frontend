@@ -66,7 +66,7 @@ export default function ResetPasswordPage() {
         }
 
         try {
-            const redirectUrl = `${window.location.origin}/reset-password`
+            const redirectUrl = `${window.location.origin}/auth/reset-password`
             console.log("Requesting password reset for:", email.toLowerCase().trim())
             console.log("Redirect URL:", redirectUrl)
             
@@ -149,7 +149,7 @@ export default function ResetPasswordPage() {
                 
                 // Redirect to login after a short delay
                 setTimeout(() => {
-                    navigate("/login")
+                    navigate("/auth/login")
                 }, 2000)
             }
         } catch (err) {
@@ -224,7 +224,7 @@ export default function ResetPasswordPage() {
 
                     <div className="text-center">
                         <Link
-                            to="/login"
+                            to="/auth/login"
                             className="text-sm text-gray-600 hover:text-gray-900 underline"
                         >
                             Back to Login
@@ -269,7 +269,7 @@ export default function ResetPasswordPage() {
                             Send another email
                         </Button>
                         <Link
-                            to="/login"
+                            to="/auth/login"
                             className="block text-sm text-gray-600 hover:text-gray-900 underline"
                         >
                             Back to Login
@@ -316,7 +316,7 @@ export default function ResetPasswordPage() {
 
                     <div className="text-center">
                         <Link
-                            to="/login"
+                            to="/auth/login"
                             className="text-sm text-gray-600 hover:text-gray-900 underline"
                         >
                             Back to Login

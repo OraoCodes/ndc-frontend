@@ -36,3 +36,5 @@ SET status = 'published'
 WHERE status = 'draft' AND created_by IS NULL;
 
 
+
+

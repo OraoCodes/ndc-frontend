@@ -1,13 +1,14 @@
 // client/pages/County/index.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useParams } from "react-router-dom"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { IndicatorSection } from "@/components/indicator-section"
 import { Loader2 } from "lucide-react"
-import { listCounties, getCountyPerformance, listIndicators, listThematicAreas } from "@/lib/supabase-api"
+import { useQuery } from "@tanstack/react-query"
+import { listCounties, getCountyPerformance, listIndicators, listThematicAreas, getCountySummaryPerformance } from "@/lib/supabase-api"
 
 interface Indicator {
   id: number;
@@ -38,7 +39,13 @@ export default function CountyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [indicators, setIndicators] = useState<Indicator[]>([])
-  const [thematicAreas, setThematicAreas] = useState<ThematicArea[]>([])
+
+  // Use React Query for thematic areas to automatically refetch when they change
+  const { data: thematicAreas = [] } = useQuery<ThematicArea[]>({
+    queryKey: ["thematicAreas"],
+    queryFn: listThematicAreas,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  })
 
   // Calculate score for a single indicator based on response or use saved score
   const calculateIndicatorScore = (indicator: Indicator, response: string, savedScore: string | number | undefined): number => {
@@ -79,13 +86,26 @@ export default function CountyPage() {
   };
 
   // Group indicators by sector and thematic area
-  const groupIndicatorsByThematicArea = (sectorType: 'water' | 'waste', indicatorsData: Record<string, any>, allIndicators: Indicator[]) => {
+  // This function now ensures ALL thematic areas from the database are included, even if they have no indicators
+  const groupIndicatorsByThematicArea = (
+    sectorType: 'water' | 'waste', 
+    indicatorsData: Record<string, any>, 
+    allIndicators: Indicator[],
+    allThematicAreas: ThematicArea[]
+  ) => {
     const grouped: Record<string, IndicatorItem[]> = {};
+    
+    // First, initialize all thematic areas for this sector with empty arrays
+    // This ensures thematic areas without indicators still appear
+    const sectorThematicAreas = allThematicAreas.filter(ta => ta.sector === sectorType);
+    sectorThematicAreas.forEach(ta => {
+      grouped[ta.name] = [];
+    });
     
     // Get all indicators for this sector
     const sectorIndicators = allIndicators.filter(ind => ind.sector === sectorType);
     
-    // Group by thematic area
+    // Group indicators by thematic area
     sectorIndicators.forEach((ind) => {
       const thematicArea = ind.thematic_area || "Other";
       if (!grouped[thematicArea]) {
@@ -107,17 +127,17 @@ export default function CountyPage() {
       });
     });
     
-    // Sort thematic areas by their order (Governance, MRV, Mitigation, Adaptation, Finance)
+    // Sort thematic areas alphabetically, but prioritize common NDC areas
     const thematicAreaOrder = ["Governance & Policy Framework", "MRV", "Mitigation Actions", "Adaptation & Resilience", "Climate Finance & Investment"];
     const sortedGrouped: Record<string, IndicatorItem[]> = {};
     
-    // First add thematic areas in order
+    // First add common NDC thematic areas in order (if they exist)
     thematicAreaOrder.forEach(areaName => {
       const matchingArea = Object.keys(grouped).find(name => 
         name.toLowerCase().includes(areaName.toLowerCase().split(' ')[0]) ||
         areaName.toLowerCase().includes(name.toLowerCase().split(' ')[0])
       );
-      if (matchingArea && grouped[matchingArea]) {
+      if (matchingArea) {
         // Reset numbering for each thematic area
         sortedGrouped[matchingArea] = grouped[matchingArea].map((item, idx) => ({
           ...item,
@@ -126,16 +146,17 @@ export default function CountyPage() {
       }
     });
     
-    // Then add any remaining thematic areas
-    Object.keys(grouped).forEach(areaName => {
-      if (!sortedGrouped[areaName]) {
+    // Then add all remaining thematic areas alphabetically
+    Object.keys(grouped)
+      .filter(areaName => !sortedGrouped[areaName])
+      .sort((a, b) => a.localeCompare(b))
+      .forEach(areaName => {
         // Reset numbering for each thematic area
         sortedGrouped[areaName] = grouped[areaName].map((item, idx) => ({
           ...item,
           no: idx + 1
         }));
-      }
-    });
+      });
     
     return sortedGrouped;
   };
@@ -155,27 +176,45 @@ export default function CountyPage() {
           listIndicators(),
           listThematicAreas()
         ]);
-        
         setIndicators(allIndicators);
-        setThematicAreas(allThematicAreas);
 
         // 2. Validate county exists
         const counties = await listCounties()
         const county = counties.find((c: any) => c.name.toLowerCase() === urlName.toLowerCase())
         if (!county) throw new Error(`County "${urlName}" not found in database`)
 
-        // 3. Fetch real performance data
-        const perf = await getCountyPerformance(county.name, 2025)
+        // 3. Fetch real performance data and rankings
+        const [perf, waterRankings, wasteRankings] = await Promise.all([
+          getCountyPerformance(county.name, 2025),
+          getCountySummaryPerformance('water', 2025),
+          getCountySummaryPerformance('waste', 2025)
+        ])
 
-        // 4. Group indicators by thematic area for water and waste
-        const waterGrouped = groupIndicatorsByThematicArea('water', perf.waterIndicators || {}, allIndicators);
-        const wasteGrouped = groupIndicatorsByThematicArea('waste', perf.wasteIndicators || {}, allIndicators);
+        // 4. Find county's rank in each sector
+        // findIndex returns -1 if not found, so we need to handle that case
+        const waterRankIndex = waterRankings.findIndex((r: any) => 
+          (r.name || r.county_name)?.toLowerCase() === county.name.toLowerCase()
+        )
+        // If county found, rank is index + 1 (1-based). If not found or only one county, default to 1
+        const waterRank = waterRankIndex >= 0 ? waterRankIndex + 1 : 1
+
+        const wasteRankIndex = wasteRankings.findIndex((r: any) => 
+          (r.name || r.county_name)?.toLowerCase() === county.name.toLowerCase()
+        )
+        // If county found, rank is index + 1 (1-based). If not found or only one county, default to 1
+        const wasteRank = wasteRankIndex >= 0 ? wasteRankIndex + 1 : 1
+
+        // 5. Group indicators by thematic area for water and waste
+        // Pass thematic areas to ensure all are included, even without indicators
+        const waterGrouped = groupIndicatorsByThematicArea('water', perf.waterIndicators || {}, allIndicators, allThematicAreas);
+        const wasteGrouped = groupIndicatorsByThematicArea('waste', perf.wasteIndicators || {}, allIndicators, allThematicAreas);
 
         setData({
           name: perf.county || county.name,
-          overallScore: Number(perf.overallScore || 0).toFixed(1),
           waterScore: Number(perf.waterScore || 0).toFixed(1),
           wasteScore: Number(perf.wasteScore || 0).toFixed(1),
+          waterRank: waterRank || 1,
+          wasteRank: wasteRank || 1,
           indicators: {
             governance: perf.indicators?.governance || "0.0",
             mrv: perf.indicators?.mrv || "0.0",
@@ -196,6 +235,60 @@ export default function CountyPage() {
 
     loadCounty()
   }, [countyName])
+
+  // Get thematic area scores for display in cards
+  const getThematicAreaScores = (sectorType: 'water' | 'waste'): Array<{ name: string; score: number }> => {
+    if (!data || !thematicAreas || !indicators) return [];
+    
+    // Filter thematic areas by sector
+    const sectorThematicAreas = thematicAreas.filter(ta => ta.sector === sectorType);
+    
+    // Get grouped indicators for this sector (these are IndicatorItem[] with scores already calculated)
+    const groupedIndicators = sectorType === 'water' ? data.water : data.waste;
+    
+    // Calculate scores for each thematic area
+    return sectorThematicAreas.map(ta => {
+      // Get indicator items for this thematic area (already grouped with scores)
+      const indicatorItems = groupedIndicators[ta.name] || [];
+      const totalScore = indicatorItems.reduce((sum: number, item: IndicatorItem) => sum + item.score, 0);
+      
+      // Get max score from indicator weights for this thematic area
+      // Find all indicators in the full list that match this sector and thematic area
+      const matchingIndicators = indicators.filter((ind: Indicator) => 
+        ind.sector === sectorType && ind.thematic_area === ta.name
+      );
+      const maxScore = matchingIndicators.reduce((sum: number, ind: Indicator) => sum + (ind.weight || 0), 0);
+      
+      // Calculate raw score using MRV formula: (score/max score)*100
+      let rawScore = 0;
+      if (indicatorItems.length > 0 && maxScore > 0) {
+        rawScore = (totalScore / maxScore) * 100;
+      } else if (indicatorItems.length === 0) {
+        // If no indicators exist yet, try to get from performance data as fallback
+        const perfKey = ta.name.toLowerCase().includes('governance') ? 'governance' :
+                        ta.name.toLowerCase().includes('mrv') ? 'mrv' :
+                        ta.name.toLowerCase().includes('mitigation') ? 'mitigation' :
+                        ta.name.toLowerCase().includes('adaptation') ? 'adaptation' :
+                        ta.name.toLowerCase().includes('finance') ? 'finance' : null;
+        if (perfKey && data.indicators) {
+          rawScore = parseFloat(data.indicators[perfKey]) || 0;
+        }
+      }
+      
+      // Multiply by thematic area weight percentage (e.g., 80 × 30% = 24)
+      const weightPercentage = ta.weight_percentage || 0;
+      const weightedScore = rawScore * (weightPercentage / 100);
+      
+      return {
+        name: ta.name,
+        score: Math.round(weightedScore * 100) / 100 // Round to 2 decimal places
+      };
+    });
+  };
+
+  // Memoize thematic area scores for water and waste
+  const waterThematicAreaScores = useMemo(() => getThematicAreaScores('water'), [data, thematicAreas, indicators]);
+  const wasteThematicAreaScores = useMemo(() => getThematicAreaScores('waste'), [data, thematicAreas, indicators]);
 
   // Loading & Error States
   if (loading) {
@@ -249,12 +342,12 @@ export default function CountyPage() {
           <div className="lg:col-span-7 space-y-8">
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-white rounded-2xl shadow-sm border p-10 text-center">
-                <div className="text-6xl font-bold text-gray-900">{data.overallScore}</div>
-                <p className="text-gray-600 mt-3 text-lg">Overall Score /100</p>
+                <div className="text-6xl font-bold text-gray-900">{data.waterRank || 1}</div>
+                <p className="text-gray-600 mt-3 text-lg">Water Sector National Rank</p>
               </div>
               <div className="bg-white rounded-2xl shadow-sm border p-10 text-center">
-                <div className="text-6xl font-bold text-gray-900">—</div>
-                <p className="text-gray-600 mt-3 text-lg">National Rank</p>
+                <div className="text-6xl font-bold text-gray-900">{data.wasteRank || 1}</div>
+                <p className="text-gray-600 mt-3 text-lg">Waste Management National Rank</p>
               </div>
             </div>
 
@@ -272,15 +365,16 @@ export default function CountyPage() {
                   <div className="bg-blue-600 h-full rounded-full transition-all duration-1000" style={{ width: `${data.waterScore}%` }} />
                 </div>
                 <div className="mt-6 space-y-3 text-sm">
-                  {["Governance", "MRV", "Mitigation", "Adaptation", "Finance"].map((label, i) => {
-                    const key = ["governance", "mrv", "mitigation", "adaptation", "finance"][i]
-                    return (
-                      <div key={label} className="flex justify-between font-medium">
-                        <span>{label}</span>
-                        <span>{data.indicators[key]}/100</span>
+                  {waterThematicAreaScores.length > 0 ? (
+                    waterThematicAreaScores.map((area) => (
+                      <div key={area.name} className="flex justify-between font-medium">
+                        <span>{area.name}</span>
+                        <span>{area.score}/100</span>
                       </div>
-                    )
-                  })}
+                    ))
+                  ) : (
+                    <div className="text-gray-500 text-xs py-2">No thematic areas available yet.</div>
+                  )}
                 </div>
               </div>
 
@@ -297,15 +391,16 @@ export default function CountyPage() {
                   <div className="bg-green-600 h-full rounded-full transition-all duration-1000" style={{ width: `${data.wasteScore}%` }} />
                 </div>
                 <div className="mt-6 space-y-3 text-sm">
-                  {["Governance", "MRV", "Mitigation", "Adaptation", "Finance"].map((label, i) => {
-                    const key = ["governance", "mrv", "mitigation", "adaptation", "finance"][i]
-                    return (
-                      <div key={label} className="flex justify-between font-medium">
-                        <span>{label}</span>
-                        <span>{data.indicators[key]}/100</span>
+                  {wasteThematicAreaScores.length > 0 ? (
+                    wasteThematicAreaScores.map((area) => (
+                      <div key={area.name} className="flex justify-between font-medium">
+                        <span>{area.name}</span>
+                        <span>{area.score}/100</span>
                       </div>
-                    )
-                  })}
+                    ))
+                  ) : (
+                    <div className="text-gray-500 text-xs py-2">No thematic areas available yet.</div>
+                  )}
                 </div>
               </div>
             </div>

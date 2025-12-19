@@ -33,13 +33,15 @@ import CountyWaterPage from "./pages/Water-Management";
 import CountyWastePage from "./pages/Waste-Management";
 import AboutToolPage from "./pages/AboutToolPage";
 import ThematicAreaPage from "./pages/ThematicAreaPage";
+import TermsAndConditionsPage from "./pages/TermsAndConditionsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 0, // Always consider data stale, refetch when invalidated
+      refetchOnMount: true, // Refetch when component mounts if data is stale
     },
   },
 });
@@ -54,9 +56,9 @@ export const App = () => (
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/public-portal" element={<PublicPortal />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/auth/login" element={<LoginPage />} />
+            <Route path="/auth/register" element={<RegisterPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
             <Route path="/Home" element={<HomePage />} />
             <Route path="/county/:countyName" element={<CountyPage />} />
             <Route path="/water-management" element={<WaterManagement />} />
@@ -64,6 +66,7 @@ export const App = () => (
             <Route path="/waste-management" element={<WasteManagement />} />
             <Route path="/waste-management/:countyName" element={<CountyWastePage />} />
             <Route path="/about-the-tool" element={<AboutToolPage />} />
+            <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
             {/* Dynamic route for ALL thematic areas - must be after specific routes */}
             <Route path="/:thematicAreaSlug" element={<ThematicAreaPage />} />
 

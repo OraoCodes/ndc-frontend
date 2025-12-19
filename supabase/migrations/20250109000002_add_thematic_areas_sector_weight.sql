@@ -29,3 +29,5 @@ CREATE INDEX IF NOT EXISTS idx_thematic_areas_sector ON thematic_areas(sector);
 -- This migration just adds the columns without breaking existing data
 
 
+
+

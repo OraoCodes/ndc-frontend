@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { HeroBanner } from "@/components/hero-banner"
@@ -34,72 +35,32 @@ interface RankedCounty extends CountySummaryPerformance {
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState("water")
-    const [thematicAreas, setThematicAreas] = useState<ThematicArea[]>([])
-    const [publications, setPublications] = useState<Publication[]>([])
-    const [waterSummaryData, setWaterSummaryData] = useState<CountySummaryPerformance[]>([])
-    const [wasteSummaryData, setWasteSummaryData] = useState<CountySummaryPerformance[]>([])
 
-    const [loadingThematicAreas, setLoadingThematicAreas] = useState(true)
-    const [loadingPublications, setLoadingPublications] = useState(true)
-    const [loadingSummaryData, setLoadingSummaryData] = useState(true)
+    // Use React Query for automatic refetching when data changes
+    const { data: thematicAreas = [], isLoading: loadingThematicAreas, error: errorThematicAreas } = useQuery<ThematicArea[]>({
+        queryKey: ["thematicAreas"],
+        queryFn: listThematicAreas,
+    });
 
-    const [errorThematicAreas, setErrorThematicAreas] = useState<string | null>(null)
-    const [errorPublications, setErrorPublications] = useState<string | null>(null)
-    const [errorSummaryData, setErrorSummaryData] = useState<string | null>(null)
+    const { data: publications = [], isLoading: loadingPublications, error: errorPublications } = useQuery<Publication[]>({
+        queryKey: ["publications"],
+        queryFn: listPublications,
+    });
 
-    useEffect(() => {
-        const fetchThematicAreas = async () => {
-            try {
-                console.log('Fetching thematic areas...');
-                const data = await listThematicAreas();
-                console.log('Thematic areas fetched:', data);
-                setThematicAreas(data || []);
-            } catch (error: any) {
-                console.error('Error fetching thematic areas:', error);
-                setErrorThematicAreas(error.message || "Failed to fetch thematic areas");
-            } finally {
-                setLoadingThematicAreas(false);
-            }
-        };
+    const { data: waterSummaryData = [], isLoading: loadingWaterSummary, error: errorWaterSummary } = useQuery({
+        queryKey: ["county-summary-performance", "water"],
+        queryFn: () => getCountySummaryPerformance("water"),
+    });
 
-        const fetchPublications = async () => {
-            try {
-                console.log('Fetching publications...');
-                const data = await listPublications();
-                console.log('Publications fetched:', data);
-                setPublications(data || []);
-            } catch (error: any) {
-                console.error('Error fetching publications:', error);
-                setErrorPublications(error.message || "Failed to fetch publications");
-            } finally {
-                setLoadingPublications(false);
-            }
-        };
+    const { data: wasteSummaryData = [], isLoading: loadingWasteSummary, error: errorWasteSummary } = useQuery({
+        queryKey: ["county-summary-performance", "waste"],
+        queryFn: () => getCountySummaryPerformance("waste"),
+    });
 
-        const fetchSummaryData = async () => {
-            try {
-                console.log('Fetching summary data...');
-                const [waterData, wasteData] = await Promise.all([
-                    getCountySummaryPerformance("water"),
-                    getCountySummaryPerformance("waste")
-                ])
-                console.log('Summary data fetched:', { waterData, wasteData });
-                setWaterSummaryData(waterData || [])
-                setWasteSummaryData(wasteData || [])
-            } catch (error: any) {
-                console.error('Error fetching summary data:', error);
-                setErrorSummaryData(error.message || "Failed to load county performance")
-            } finally {
-                setLoadingSummaryData(false)
-            }
-        }
+    const loadingSummaryData = loadingWaterSummary || loadingWasteSummary;
+    const errorSummaryData = errorWaterSummary || errorWasteSummary;
 
-        fetchThematicAreas();
-        fetchPublications();
-        fetchSummaryData();
-    }, []);
-
-        const rawData = activeTab === "water" ? waterSummaryData : wasteSummaryData;
+    const rawData = activeTab === "water" ? waterSummaryData : wasteSummaryData;
     const safeData = Array.isArray(rawData) ? rawData : [];
 
     const rankedData: RankedCounty[] = safeData
@@ -201,7 +162,9 @@ export default function Home() {
                             {loadingSummaryData ? (
                                 <div>Loading summary data...</div>
                             ) : errorSummaryData ? (
-                                <div className="text-red-500">{errorSummaryData}</div>
+                                <div className="text-red-500">
+                                    {(errorSummaryData as Error)?.message || "Failed to load county performance"}
+                                </div>
                             ) : safeData.length === 0 ? (
                                 <div className="text-center py-8 text-gray-500">
                                     No data available for {activeTab === "water" ? "Water" : "Waste"} sector
@@ -276,7 +239,9 @@ export default function Home() {
                         {loadingThematicAreas ? (
                             <div>Loading thematic areas...</div>
                         ) : errorThematicAreas ? (
-                            <div className="text-red-500">{errorThematicAreas}</div>
+                            <div className="text-red-500">
+                                {(errorThematicAreas as Error)?.message || "Failed to fetch thematic areas"}
+                            </div>
                         ) : (
                             <div className="space-y-6">
                                 {uniqueThematicAreas.map((area) => (
@@ -309,7 +274,9 @@ export default function Home() {
                         {loadingPublications ? (
                             <div>Loading publications...</div>
                         ) : errorPublications ? (
-                            <div className="text-red-500">{errorPublications}</div>
+                            <div className="text-red-500">
+                                {(errorPublications as Error)?.message || "Failed to fetch publications"}
+                            </div>
                         ) : publications.length === 0 ? (
                             <div className="text-center py-12 text-gray-500">
                                 <p className="text-lg">No publications available yet.</p>

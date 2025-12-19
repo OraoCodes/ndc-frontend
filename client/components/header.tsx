@@ -1,30 +1,38 @@
 // client/components/header.tsx
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Link } from "react-router-dom"
 import { Search, Menu, X, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { listCounties } from "@/lib/supabase-api"
-
-// Static thematic areas (these don't change)
-const thematicAreasItems = [
-  { name: 'Governance', path: '/governance' },
-  { name: 'MRV', path: '/mrv' },
-  { name: 'Mitigation', path: '/mitigation' },
-  { name: 'Adaptation', path: '/adaptation' },
-  { name: 'Finance & Technology Transfer', path: '/finance-technology-transfer' },
-]
+import { useQuery } from "@tanstack/react-query"
+import { listCounties, listThematicAreas, type ThematicArea } from "@/lib/supabase-api"
 
 interface County {
   id: number
   name: string
 }
 
+// Helper function to convert thematic area name to URL-friendly slug
+const getThematicAreaSlug = (areaName: string): string => {
+  return areaName
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export function Header({ currentPage }: { currentPage?: string }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [counties, setCounties] = useState<County[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadingCounties, setLoadingCounties] = useState(true)
+
+  // Use React Query for thematic areas to automatically refetch when they change
+  const { data: thematicAreasData = [], isLoading: loadingThematicAreas } = useQuery<ThematicArea[]>({
+    queryKey: ["thematicAreas"],
+    queryFn: listThematicAreas,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  })
 
   useEffect(() => {
     listCounties()
@@ -36,13 +44,29 @@ export function Header({ currentPage }: { currentPage?: string }) {
         console.error("Failed to load counties:", err)
         setCounties([])
       })
-      .finally(() => setLoading(false))
+      .finally(() => setLoadingCounties(false))
   }, [])
 
   const countiesItems = counties.map(county => ({
     name: county.name,
     path: `/county/${county.name.toLowerCase().replace(/\s+/g, '-')}`
   }))
+
+  // Deduplicate and convert thematic areas to dropdown items format
+  // Same thematic area name can exist in both water and waste sectors
+  const thematicAreasItems = useMemo(() => {
+    // Deduplicate thematic areas by name (same name can exist in both water and waste sectors)
+    const uniqueAreas = Array.from(
+      new Map(thematicAreasData.map(area => [area.name, area])).values()
+    )
+    // Sort alphabetically
+    const sorted = uniqueAreas.sort((a, b) => a.name.localeCompare(b.name))
+    // Convert to dropdown items format
+    return sorted.map(area => ({
+      name: area.name,
+      path: `/${getThematicAreaSlug(area.name)}`
+    }))
+  }, [thematicAreasData])
 
   return (
     <>
@@ -67,9 +91,16 @@ export function Header({ currentPage }: { currentPage?: string }) {
 
           <nav className="hidden lg:flex items-center gap-6 text-sm font-medium">
             <Link to="/" className={`hover:text-blue-600 ${currentPage === "home" ? "text-blue-600 font-bold" : "text-gray-700"}`}>HOME</Link>
-            <Dropdown title="THEMATIC AREAS" items={thematicAreasItems} currentPage={currentPage} />
+            {loadingThematicAreas ? (
+              <div className="flex items-center gap-2 text-gray-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
+            ) : (
+              <Dropdown title="THEMATIC AREAS" items={thematicAreasItems} currentPage={currentPage} />
+            )}
             
-            {loading ? (
+            {loadingCounties ? (
               <div className="flex items-center gap-2 text-gray-500">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Loading counties...</span>
@@ -100,9 +131,16 @@ export function Header({ currentPage }: { currentPage?: string }) {
               </div>
               <nav className="space-y-4 text-lg font-medium">
                 <Link to="/" onClick={() => setMobileMenuOpen(false)} className="block">Home</Link>
-                <MobileDropdown title="Thematic Areas" items={thematicAreasItems} onClose={() => setMobileMenuOpen(false)} />
+                {loadingThematicAreas ? (
+                  <div className="py-4 text-center text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                    Loading thematic areas...
+                  </div>
+                ) : (
+                  <MobileDropdown title="Thematic Areas" items={thematicAreasItems} onClose={() => setMobileMenuOpen(false)} />
+                )}
                 
-                {loading ? (
+                {loadingCounties ? (
                   <div className="py-4 text-center text-gray-500">
                     <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                     Loading counties...

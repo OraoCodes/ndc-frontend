@@ -412,9 +412,12 @@ export default function CountyData() {
       }
     },
     onSuccess: () => {
+      // Invalidate all queries that depend on county performance data
       queryClient.invalidateQueries({ queryKey: ["counties"] });
       queryClient.invalidateQueries({ queryKey: ["county"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      // Invalidate county summary performance queries (used by homepage)
+      queryClient.invalidateQueries({ queryKey: ["county-summary-performance"] });
       toast({ 
         title: "Success", 
         description: `County data saved successfully!` 

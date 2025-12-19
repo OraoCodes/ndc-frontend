@@ -1,6 +1,35 @@
 "use client"
 
+import { useQuery } from "@tanstack/react-query"
+import { listThematicAreas, type ThematicArea } from "@/lib/supabase-api"
+import { useMemo } from "react"
+import { Link } from "react-router-dom"
+
+// Helper function to convert thematic area name to URL-friendly slug
+const getThematicAreaSlug = (areaName: string): string => {
+    return areaName
+        .toLowerCase()
+        .replace(/&/g, 'and')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
 export function Footer() {
+    // Use React Query for thematic areas to automatically refetch when they change
+    const { data: thematicAreasData = [] } = useQuery<ThematicArea[]>({
+        queryKey: ["thematicAreas"],
+        queryFn: listThematicAreas,
+        staleTime: 2 * 60 * 1000, // 2 minutes
+    })
+
+    // Deduplicate and sort thematic areas
+    const thematicAreas = useMemo(() => {
+        const uniqueAreas = Array.from(
+            new Map(thematicAreasData.map(area => [area.name, area])).values()
+        )
+        return uniqueAreas.sort((a, b) => a.name.localeCompare(b.name))
+    }, [thematicAreasData])
+
     return (
         <footer className="bg-[#0B1138] text-slate-100 pt-12">
             <div className="max-w-7xl mx-auto px-4 md:px-6">
@@ -14,9 +43,14 @@ export function Footer() {
                         <h4 className="font-semibold mb-6 text-white uppercase text-sm">ABOUT</h4>
                         <ul className="space-y-3 text-sm">
                             <li>
-                                <a href="/about-the-tool" className="hover:text-white transition-colors">
+                                <Link to="/about-the-tool" className="hover:text-white transition-colors">
                                     About the tool
-                                </a>
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/terms-and-conditions" className="hover:text-white transition-colors">
+                                    Terms and Conditions
+                                </Link>
                             </li>
                            {/* <li>
                                 <a href="#" className="hover:text-white transition-colors">
@@ -34,31 +68,20 @@ export function Footer() {
                     <div>
                         <h4 className="font-semibold mb-6 text-white uppercase text-sm">Thematic Areas</h4>
                         <ul className="space-y-3 text-sm">
-                            <li>
-                                <a href="/governance" className="hover:text-white transition-colors">
-                                    Governance
-                                </a>
-                            </li>
-                            <li>
-                                <a href="/mrv" className="hover:text-white transition-colors">
-                                    MRV
-                                </a>
-                            </li>
-                            <li>
-                                <a href="/mitigation" className="hover:text-white transition-colors">
-                                    Mitigation
-                                </a>
-                            </li>
-                            <li>
-                                <a href="/adaptation" className="hover:text-white transition-colors">
-                                    Adaptation
-                                </a>
-                            </li>
-                            <li>
-                                <a href="/finance-technology-transfer" className="hover:text-white transition-colors">
-                                    Finance & Technology Transfer
-                                </a>
-                            </li>
+                            {thematicAreas.length > 0 ? (
+                                thematicAreas.map(area => (
+                                    <li key={area.name}>
+                                        <Link 
+                                            to={`/${getThematicAreaSlug(area.name)}`} 
+                                            className="hover:text-white transition-colors"
+                                        >
+                                            {area.name}
+                                        </Link>
+                                    </li>
+                                ))
+                            ) : (
+                                <li className="text-slate-400 text-xs">Loading thematic areas...</li>
+                            )}
                         </ul>
                     </div>
 

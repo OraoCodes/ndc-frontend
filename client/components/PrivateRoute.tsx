@@ -36,7 +36,7 @@ const PrivateRoute: React.FC = () => {
 
   if (!isAuthenticated) {
     // Redirect to login if not authenticated
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/auth/login" replace />;
   }
 
   // Render child routes if authenticated

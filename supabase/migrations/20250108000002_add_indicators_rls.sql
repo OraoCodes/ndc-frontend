@@ -17,3 +17,5 @@ CREATE POLICY "Authenticated users can manage indicators"
 
 
 
+
+

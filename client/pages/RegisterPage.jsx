@@ -84,7 +84,7 @@ export default function RegisterPage() {
         // Show success message
         alert(`✅ Registration successful!\n\nPlease check your email (${result.email}) to confirm your account.\n\nAfter confirming, you can log in.`)
         // Redirect to login page
-        navigate("/login")
+        navigate("/auth/login")
       } else {
         // Success! Wait for user profile to be loaded before redirecting
         setError("")
@@ -211,7 +211,7 @@ export default function RegisterPage() {
 
         <p className="text-center text-sm text-gray-600 mt-6">
           Already have an account?{" "}
-          <Link to="/login" className="font-bold text-blue-600 hover:underline">
+          <Link to="/auth/login" className="font-bold text-blue-600 hover:underline">
             Login here
           </Link>
         </p>

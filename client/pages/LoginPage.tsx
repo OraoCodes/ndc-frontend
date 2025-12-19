@@ -101,7 +101,7 @@ export default function LoginPage() {
 
       <div className="mt-6 space-y-4 text-center">
         <Link
-          to="/reset-password"
+          to="/auth/reset-password"
           className="block text-sm text-gray-900 font-medium underline hover:no-underline"
         >
           Forgot password?
@@ -110,7 +110,7 @@ export default function LoginPage() {
         <p className="text-sm text-gray-600">
           Don't have an account?{" "}
           <Link
-            to="/register"
+            to="/auth/register"
             className="font-semibold text-gray-900 underline hover:no-underline transition-colors"
           >
             Sign up
